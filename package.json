@@ -1,0 +1,17 @@
+{
+  "name": "asymdoom",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Asymmetrical DOOM: headless dedicated server, browser players. Marine vs player-possessed demons.",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "build:engine": "engine/scripts/build.sh",
+    "build:web": "npm run build -w web",
+    "build": "npm run build:engine && npm run build:web",
+    "start": "npm run start -w server",
+    "dev": "npm run dev -w server"
+  }
+}

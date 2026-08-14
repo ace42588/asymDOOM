@@ -1,0 +1,25 @@
+node_modules/
+dist/
+*.log
+
+# engine build artifacts (autotools + emscripten)
+engine/Makefile
+engine/Makefile.in
+engine/aclocal.m4
+engine/autom4te.cache/
+engine/autotools/
+engine/config.h
+engine/config.h.in
+engine/config.log
+engine/config.status
+engine/configure
+engine/configure~
+engine/stamp-h1
+engine/**/Makefile
+engine/**/Makefile.in
+engine/**/.deps/
+engine/**/*.o
+engine/src/websockets-doom.js
+engine/src/websockets-doom.wasm
+engine/src/websockets-doom.wasm.map
+engine/src/websockets-doom.html

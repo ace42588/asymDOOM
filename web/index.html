@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>asymDOOM</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <main id="stage">
+      <!-- The canvas must have no border/padding or SDL mouse coords break. -->
+      <canvas id="canvas" width="800" height="600" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+
+      <div id="hud">
+        <div id="hud-topline">
+          <div id="hud-role" class="hud-panel">CONNECTING&hellip;</div>
+          <div id="hud-mods" class="hud-panel hidden">
+            <span id="hud-points">0 pts</span>
+            <span class="mod" id="mod-h" title="1: +25% max health">H0</span>
+            <span class="mod" id="mod-s" title="2: +15% speed">S0</span>
+            <span class="mod" id="mod-d" title="3: +25% damage">D0</span>
+            <span class="mod" id="mod-r" title="4: +20% attack rate">R0</span>
+          </div>
+        </div>
+        <div id="hud-body" class="hud-panel hidden"></div>
+        <div id="hud-banner" class="hidden"></div>
+        <div id="hud-catchup" class="hidden">Catching up&hellip;</div>
+        <div id="hud-hint" class="hidden">
+          Buy while dead or at intermission: <b>1</b> health &middot; <b>2</b> speed
+          &middot; <b>3</b> damage &middot; <b>4</b> attack rate &mdash; 50 pts each
+        </div>
+        <div id="hud-settings" class="hud-panel">
+          <div class="settings-title">Server rules</div>
+          <div id="set-marine-death">marine death: demons win</div>
+          <div id="set-demon-death">demon death: possess next</div>
+          <div id="set-demon-view">demon view: first person</div>
+        </div>
+      </div>
+    </main>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

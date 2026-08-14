@@ -1,0 +1,19 @@
+{
+  "skill": 3,
+  "episode": 1,
+  "map": 1,
+  "maxPlayers": 8,
+  "onMarineDeath": "demons_win",
+  "onDemonDeath": "possess_next",
+  "demonView": "first_person",
+  "possessableTypes": [
+    "zombieman",
+    "shotgunner",
+    "imp",
+    "demon",
+    "spectre",
+    "lostsoul",
+    "cacodemon",
+    "baron"
+  ]
+}
