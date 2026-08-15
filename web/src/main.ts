@@ -66,6 +66,7 @@ async function boot() {
     noInitialRun: true,
     noExitRuntime: true,
     canvas,
+    locateFile: (path: string) => `${path}?v=${Date.now()}`,
     onRuntimeInitialized: () => {
       const callMain =
         window.callMain ?? (window.Module as { callMain?: (a: string[]) => void }).callMain;
@@ -81,9 +82,12 @@ async function boot() {
       FS.createPreloadedFile("", "default.cfg", "default.cfg", true, true);
     },
     print: (text: string) => {
-      console.log(text);
-      (window as unknown as { __asymPrints: string[] }).__asymPrints ??= [];
-      (window as unknown as { __asymPrints: string[] }).__asymPrints.push(text);
+      // Cap the debug ring buffer — an unbounded push here OOMs Firefox over
+      // long sessions (especially with DevTools open). HUD still gets lines.
+      const bag = window as unknown as { __asymPrints?: string[] };
+      const prints = (bag.__asymPrints ??= []);
+      prints.push(text);
+      if (prints.length > 1000) prints.splice(0, prints.length - 1000);
       text.split("\n").forEach(handleLine);
     },
     printErr: (text: string) => console.error(text),
@@ -97,7 +101,7 @@ async function boot() {
   canvas.addEventListener("click", () => canvas.focus());
 
   const script = document.createElement("script");
-  script.src = "/websockets-doom.js";
+  script.src = `/websockets-doom.js?v=${Date.now()}`;
   document.body.appendChild(script);
 }
 

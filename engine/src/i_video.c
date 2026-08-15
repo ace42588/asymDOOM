@@ -22,6 +22,10 @@
 #include "SDL.h"
 #include "SDL_opengl.h"
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -742,6 +746,14 @@ void I_FinishUpdate (void)
         return;
 #endif
 
+#ifdef __EMSCRIPTEN__
+    // Skip software-canvas present while the tab is hidden. Firefox still
+    // delivers WS traffic, so we keep sim/net running; only the expensive
+    // putImageData path is skipped to avoid long-idle tab OOMs.
+    if (EM_ASM_INT({ return document.hidden ? 1 : 0; }))
+        return;
+#endif
+
     // draws little dots on the bottom of the screen
 
     if (display_fps_dots)
@@ -787,6 +799,12 @@ void I_FinishUpdate (void)
 
     SDL_RenderClear(renderer);
 
+#ifdef __EMSCRIPTEN__
+    // The intermediate TARGETTEXTURE upscale renders into an FBO that
+    // stays black on emscripten's GLES backend, so the window presents
+    // a cleared framebuffer. Draw the streaming texture directly.
+    SDL_RenderCopy(renderer, texture, NULL, NULL);
+#else
     // Render this intermediate texture into the upscaled texture
     // using "nearest" integer scaling.
 
@@ -797,6 +815,7 @@ void I_FinishUpdate (void)
 
     SDL_SetRenderTarget(renderer, NULL);
     SDL_RenderCopy(renderer, texture_upscaled, NULL, NULL);
+#endif
 
     // Draw!
 
@@ -1395,6 +1414,13 @@ void I_InitGraphics(void)
     // Keep present/poll from calling emscripten_sleep inside the rAF loop.
     setenv("SDL_EMSCRIPTEN_ASYNCIFY", "0", 1);
     SDL_SetHint("SDL_EMSCRIPTEN_ASYNCIFY", "0");
+
+#ifdef __EMSCRIPTEN__
+    // force_software_renderer lives in chocolate-doom.cfg (extra config),
+    // not vanilla default.cfg, so the shipped default.cfg never applied.
+    // The 2D software path is the one that actually reaches the canvas.
+    force_software_renderer = true;
+#endif
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0)  
     {

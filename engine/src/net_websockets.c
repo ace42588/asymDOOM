@@ -45,8 +45,8 @@ uint32_t ips[MAX_QUEUE_SIZE];
 
 static void WebsocketsQueueInit(packet_queue_t *queue) { queue->head = queue->tail = 0; }
 
-// Pushes one packet into the queue
-static void WebsocketsQueuePush(packet_queue_t *queue, net_packet_t *packet, uint32_t from)
+// Pushes one packet into the queue. Returns false if full (caller must free).
+static boolean WebsocketsQueuePush(packet_queue_t *queue, net_packet_t *packet, uint32_t from)
 {
     int new_tail;
 
@@ -54,20 +54,38 @@ static void WebsocketsQueuePush(packet_queue_t *queue, net_packet_t *packet, uin
 
     if (new_tail == queue->head) {
         // queue is full
-
-        return;
+        return false;
     }
 
     queue->packets[queue->tail] = packet;
     queue->froms[queue->tail] = from;
     queue->tail = new_tail;
+    return true;
 }
 
 // WebSockets code
 
-static EMSCRIPTEN_WEBSOCKET_T websocket;
+static EMSCRIPTEN_WEBSOCKET_T websocket = 0;
 static EmscriptenWebSocketCreateAttributes attr;
 static boolean inittedWebSockets = false;
+static boolean connectingWebSockets = false;
+
+static void DestroyWebSocket(void)
+{
+    if (websocket > 0) {
+        EMSCRIPTEN_WEBSOCKET_T sock = websocket;
+        // Clear before close/delete so the onclose callback does not double-free.
+        websocket = 0;
+        inittedWebSockets = false;
+        connectingWebSockets = false;
+        emscripten_websocket_close(sock, 1000, "reconnect");
+        emscripten_websocket_delete(sock);
+    }
+    else {
+        inittedWebSockets = false;
+        connectingWebSockets = false;
+    }
+}
 
 // Pops one packet from the queue
 static ws_packet_t *WebsocketsQueuePop(packet_queue_t *queue)
@@ -84,13 +102,33 @@ static ws_packet_t *WebsocketsQueuePop(packet_queue_t *queue)
     return &wsp;
 }
 
-EM_BOOL WebSocketOpen(int eventType, const EmscriptenWebSocketOpenEvent *e, void *userData) { return 0; }
+EM_BOOL WebSocketOpen(int eventType, const EmscriptenWebSocketOpenEvent *e, void *userData)
+{
+    (void)eventType;
+    (void)userData;
+    if (e->socket != websocket) {
+        return 0;
+    }
+    inittedWebSockets = true;
+    connectingWebSockets = false;
+    printf("doom: 2, connected to %s\n", attr.url);
+    return 0;
+}
 
 EM_BOOL WebSocketClose(int eventType, const EmscriptenWebSocketCloseEvent *e, void *userData)
 {
     printf("doom: 5, ws close(eventType=%d, wasClean=%d, code=%d, reason=%s, userData=%d)\n", eventType, e->wasClean,
            e->code, e->reason, (int)userData);
-    inittedWebSockets = false;
+    // DestroyWebSocket already cleared the handle; only release peer-initiated closes.
+    if (websocket > 0 && e->socket == websocket) {
+        EMSCRIPTEN_WEBSOCKET_T sock = websocket;
+        websocket = 0;
+        emscripten_websocket_delete(sock);
+    }
+    if (websocket == 0) {
+        inittedWebSockets = false;
+        connectingWebSockets = false;
+    }
     return 0;
 }
 
@@ -102,84 +140,125 @@ EM_BOOL WebSocketError(int eventType, const EmscriptenWebSocketErrorEvent *e, vo
 
 EM_BOOL WebSocketMessage(int eventType, const EmscriptenWebSocketMessageEvent *e, void *userData)
 {
-    // printf("message(eventType=%d, userData=%d, data=%p, numBytes=%d, isText=%d)\n", eventType, (int)userData,
-    // e->data, e->numBytes, e->isText);
-
     net_packet_t *packet;
+    uint32_t ip;
+
+    (void)eventType;
+    (void)userData;
 
     packet = NET_NewPacket(e->numBytes - 4);
     memcpy(packet->data, &e->data[4], e->numBytes - 4);
     packet->len = e->numBytes - 4;
 
-    uint32_t ip = 0;
+    ip = 0;
     ip = ip | *(&e->data[3]) << 24;
     ip = ip | *(&e->data[2]) << 16;
     ip = ip | *(&e->data[1]) << 8;
     ip = ip | *(&e->data[0]);
 
-    WebsocketsQueuePush(&client_queue, packet, ip);
+    if (!WebsocketsQueuePush(&client_queue, packet, ip)) {
+        // Backpressure (e.g. throttled rAF): drop newest and free so wasm heap
+        // does not grow without bound until the tab OOMs.
+        NET_FreePacket(packet);
+    }
 
     return 0;
 }
 
-static boolean InitWebSockets(void)
+// Start or finish a websocket connection. blocking=true is for the initial
+// connect before the main loop; from Recv/Send we must not emscripten_sleep
+// (Asyncify + rAF) or we stall the game and can thrash reconnects.
+static boolean InitWebSockets(boolean blocking)
 {
     int wss;
+    uint16_t readyState = 0;
 
     if (inittedWebSockets == true) {
-        return (true);
+        return true;
     }
 
     wss = M_CheckParmWithArgs("-wss", 1);
-    printf("%d\n", wss);
+    if (!wss) {
+        printf("-wss is missing\n");
+        return false;
+    }
 
-    if (wss) {
+    // Non-blocking poll of an in-flight connect.
+    if (connectingWebSockets && websocket > 0) {
+        emscripten_websocket_get_ready_state(websocket, &readyState);
+        if (readyState == 1) {
+            inittedWebSockets = true;
+            connectingWebSockets = false;
+            return true;
+        }
+        if (readyState >= 2) {
+            DestroyWebSocket();
+        }
+        else if (!blocking) {
+            return false;
+        }
+    }
+
+    if (!connectingWebSockets) {
+        printf("%d\n", wss);
+
+        DestroyWebSocket();
+
         emscripten_websocket_init_create_attributes(&attr);
-
         attr.url = myargv[wss + 1];
         // this doesn't work with some ws servers
         // attr.protocols = "binary";
 
         websocket = emscripten_websocket_new(&attr);
         if (websocket <= 0) {
-            return (false);
+            websocket = 0;
+            return false;
         }
 
         emscripten_websocket_set_onopen_callback(websocket, (void *)42, WebSocketOpen);
         emscripten_websocket_set_onclose_callback(websocket, (void *)43, WebSocketClose);
         emscripten_websocket_set_onerror_callback(websocket, (void *)44, WebSocketError);
         emscripten_websocket_set_onmessage_callback(websocket, (void *)45, WebSocketMessage);
+        connectingWebSockets = true;
+    }
 
-        uint16_t readyState = 0;
+    if (!blocking) {
+        emscripten_websocket_get_ready_state(websocket, &readyState);
+        if (readyState == 1) {
+            inittedWebSockets = true;
+            connectingWebSockets = false;
+            return true;
+        }
+        return false;
+    }
+
+    {
         int retries = 6;
         do {
             emscripten_websocket_get_ready_state(websocket, &readyState);
+            if (readyState == 1) {
+                inittedWebSockets = true;
+                connectingWebSockets = false;
+                return true;
+            }
+            if (readyState >= 2) {
+                break;
+            }
             emscripten_sleep(1000);
-            if (retries-- == 0 && readyState == 0) {
-                printf("doom: 1, failed to connect to websockets server\n");
-                return (false);
+            if (retries-- == 0) {
+                break;
             }
         } while (readyState == 0);
 
-        if (readyState == 1) {
-            printf("doom: 2, connected to %s\n", attr.url);
-            inittedWebSockets = true;
-            return (true);
-        }
-        else {
-            printf("doom: 1, failed to connect to websockets server\n");
-            return (false);
-        }
-    }
-    else {
-        printf("-wss is missing\n");
-        return (false);
+        printf("doom: 1, failed to connect to websockets server\n");
+        DestroyWebSocket();
+        return false;
     }
 }
 
 static boolean NET_Websockets_InitClient(void)
 {
-    if (InitWebSockets() == false) return false;
+    if (InitWebSockets(true) == false) return false;
     WebsocketsQueueInit(&client_queue);
     return true;
 }
@@ -188,9 +267,11 @@ static uint32_t to_ip;
 
 static boolean NET_Websockets_InitServer(void)
 {
-    if (InitWebSockets() == false) return false;
+    char *wspacket;
+
+    if (InitWebSockets(true) == false) return false;
     WebsocketsQueueInit(&client_queue);
-    char *wspacket = malloc(8);
+    wspacket = malloc(8);
     to_ip = 0;
     memcpy(&wspacket[0], &to_ip, 4);       // to
     memcpy(&wspacket[4], &instanceUID, 4); // from
@@ -201,18 +282,21 @@ static boolean NET_Websockets_InitServer(void)
 
 static void NET_Websockets_SendPacket(net_addr_t *addr, net_packet_t *packet)
 {
-    if (InitWebSockets() == false) return;
-    char *wspacket = malloc(packet->len + 8);
+    char *wspacket;
+    int r;
+
+    if (InitWebSockets(false) == false) return;
+    wspacket = malloc(packet->len + 8);
 
     if (addr->handle) {
         to_ip = (*(uint32_t *)(addr->handle));
         memcpy(&wspacket[0], &to_ip, 4);       // to
         memcpy(&wspacket[4], &instanceUID, 4); // from
         memcpy(&wspacket[8], packet->data, packet->len);
-        int r = emscripten_websocket_send_binary(websocket, wspacket, packet->len + 8);
+        r = emscripten_websocket_send_binary(websocket, wspacket, packet->len + 8);
         if (r < 0) {
             printf("doom: 6, failed to send ws packet, reconnecting");
-            inittedWebSockets = false;
+            DestroyWebSocket();
         }
         free(wspacket);
     }
@@ -226,7 +310,7 @@ static net_addr_t *FindAddressByIp(uint32_t ip)
 
     // do we have it?
     for (int i = 0; i < MAX_QUEUE_SIZE; i++) {
-        if (ips[i] == ip) {
+        if (ips[i] != 0 && ips[i] == ip) {
             return (&addrs[i]);
         }
     }
@@ -248,7 +332,7 @@ static boolean NET_Websockets_RecvPacket(net_addr_t **addr, net_packet_t **packe
 {
     ws_packet_t *popped;
 
-    if (InitWebSockets() == false) return false;
+    if (InitWebSockets(false) == false) return false;
 
     popped = WebsocketsQueuePop(&client_queue);
 
@@ -278,4 +362,3 @@ net_module_t net_websockets_module = {
     NET_Websockets_InitClient,   NET_Websockets_InitServer,  NET_Websockets_SendPacket,     NET_Websockets_RecvPacket,
     NET_Websockets_AddrToString, NET_Websockets_FreeAddress, NET_Websockets_ResolveAddress,
 };
-
