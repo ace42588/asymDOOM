@@ -1083,15 +1083,16 @@ void ST_diffDraw(void)
 void ST_Drawer (boolean fullscreen, boolean refresh)
 {
   
+    // asymDOOM: demon clients use the HTML HUD; skip the marine status bar
+    // (and avoid palette work before ST_Start has set plyr).
+    if (asym_mode && consoleplayer != 0)
+	return;
+
     st_statusbaron = (!fullscreen) || automapactive;
     st_firsttime = st_firsttime || refresh;
 
     // Do red-/gold-shifts from damage/items
     ST_doPaletteStuff();
-
-    // asymDOOM: demon clients use the HTML HUD; skip the marine status bar.
-    if (asym_mode && consoleplayer != 0)
-	return;
 
     // If just after ST_Start(), refresh all
     if (st_firsttime) ST_doRefresh();

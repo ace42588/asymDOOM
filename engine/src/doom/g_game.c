@@ -598,6 +598,9 @@ void G_DoLoadLevel(void)
     printf("asym: setup level\n");
     if (asym_mode) {
         playeringame[0] = true;
+        for (i = 1; i < MAXPLAYERS; i++) {
+            playeringame[i] = false;
+        }
     }
     P_SetupLevel(gameepisode, gamemap, 0, gameskill);
     if (asym_mode && players[0].mo == NULL) {
@@ -783,6 +786,21 @@ void G_Ticker(void)
     // do player reborns if needed
     for (i = 0; i < MAXPLAYERS; i++)
         if (playeringame[i] && players[i].playerstate == PST_REBORN) G_DoReborn(i);
+
+    // The 3D view is skipped when the marine has no mobj. Keep slot 0
+    // in-game and restore a body before thinkers run so P_PlayerThink
+    // and R_RenderPlayerView see the same actor.
+    if (asym_mode) {
+        playeringame[0] = true;
+        if (players[0].mo == NULL && playerstarts[0].type != 0) {
+            static int rescue;
+            if (rescue < 1) {
+                printf("asym: rescue marine tic=%d state=%d net=%d\n", gametic, players[0].playerstate, netgame);
+                rescue++;
+            }
+            P_SpawnPlayer(&playerstarts[0]);
+        }
+    }
 
     // do things to change the game state
     while (gameaction != ga_nothing) {
@@ -1030,8 +1048,10 @@ boolean G_CheckSpot(int playernum, mapthing_t *mthing)
 
     if (!players[playernum].mo) {
         // first spawn of level, before corpses
-        for (i = 0; i < playernum; i++)
+        for (i = 0; i < playernum; i++) {
+            if (players[i].mo == NULL) continue;
             if (players[i].mo->x == mthing->x << FRACBITS && players[i].mo->y == mthing->y << FRACBITS) return false;
+        }
         return true;
     }
 
@@ -1153,6 +1173,7 @@ void G_DoReborn(int playernum)
         // first dissasociate the corpse
         if (players[playernum].mo != NULL) {
             players[playernum].mo->player = NULL;
+            players[playernum].mo = NULL;
         }
 
         // spawn at random spot if in death match
@@ -1670,8 +1691,10 @@ void G_InitNew(skill_t skill, int episode, int map)
     }
 
     // force players to be initialized upon first level load
-    for (i = 0; i < MAXPLAYERS; i++)
+    for (i = 0; i < MAXPLAYERS; i++) {
         players[i].playerstate = PST_REBORN;
+        players[i].mo = NULL;
+    }
 
     usergame = true; // will be set false if a demo
     paused = false;

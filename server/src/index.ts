@@ -127,6 +127,7 @@ function engineArgsFor(role: "marine" | "demon"): string[] {
     "-nogui",
     "-nomusic",
     "-config", "default.cfg",
+    "-extraconfig", "default.cfg",
     "-connect", String(SERVER_UID),
     // asym rule settings ride the controller's net_gamesettings_t, but every
     // client passes them so late joiners agree before GAMESTART arrives too.

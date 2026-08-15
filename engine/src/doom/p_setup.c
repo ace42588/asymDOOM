@@ -42,6 +42,14 @@
 #include "doomstat.h"
 
 #include "asym.h"
+#include "net_client.h"
+#include "net_server.h"
+
+static void PumpNet(void)
+{
+    NET_CL_Run();
+    NET_SV_Run();
+}
 
 
 void	P_SpawnMapThing (mapthing_t*	mthing);
@@ -786,6 +794,7 @@ P_SetupLevel
 	
     totalkills = totalitems = totalsecret = wminfo.maxfrags = 0;
     printf("asym: setup begin\n");
+    PumpNet();
     wminfo.partime = 180;
     for (i=0 ; i<MAXPLAYERS ; i++)
     {
@@ -803,12 +812,19 @@ P_SetupLevel
     // Make sure all sounds are stopped before Z_FreeTags.
     S_Start ();
     printf("asym: setup after S_Start\n");
+    PumpNet();
 
     Z_FreeTags (PU_LEVEL, PU_PURGELEVEL-1);
 
     P_InitThinkers ();
 
+    // Z_FreeTags freed every mobj; drop dangling player->mo pointers so
+    // spawn/rescue never treats freed memory as a live marine body.
+    for (i = 0; i < MAXPLAYERS; i++)
+	players[i].mo = NULL;
+
     W_Reload ();
+    PumpNet();
 
     // find map name
     if ( gamemode == commercial)
@@ -834,15 +850,18 @@ P_SetupLevel
     leveltime = 0;
 	
     printf("asym: setup loading lumps\n");
+    PumpNet();
     P_LoadBlockMap (lumpnum+ML_BLOCKMAP);
     P_LoadVertexes (lumpnum+ML_VERTEXES);
     P_LoadSectors (lumpnum+ML_SECTORS);
     P_LoadSideDefs (lumpnum+ML_SIDEDEFS);
+    PumpNet();
 
     P_LoadLineDefs (lumpnum+ML_LINEDEFS);
     P_LoadSubsectors (lumpnum+ML_SSECTORS);
     P_LoadNodes (lumpnum+ML_NODES);
     P_LoadSegs (lumpnum+ML_SEGS);
+    PumpNet();
 
     P_GroupLines ();
     P_LoadReject (lumpnum+ML_REJECT);
@@ -850,6 +869,7 @@ P_SetupLevel
     bodyqueslot = 0;
     deathmatch_p = deathmatchstarts;
     printf("asym: setup things\n");
+    PumpNet();
     P_LoadThings (lumpnum+ML_THINGS);
     
     // if deathmatch, randomly spawn the active players
@@ -871,7 +891,9 @@ P_SetupLevel
 	
     if (precache) {
         printf("asym: setup precache\n");
+        PumpNet();
 	R_PrecacheLevel ();
+        PumpNet();
     }
 
     printf("asym: setup complete\n");

@@ -195,10 +195,17 @@ boolean D_Display(void)
     else
         wipe = false;
 
-    // asymDOOM: spectator camera. If the local view target has no body
-    // (between hops, or out of possessable demons) render the marine's
-    // view. This is presentation only - the sim never reads displayplayer.
-    if (asym_mode && (!playeringame[displayplayer] || players[displayplayer].mo == NULL)) displayplayer = 0;
+    // asymDOOM camera (presentation only):
+    // - Local player with a body: always view yourself (demon or marine).
+    // - Spectating / between hops: fall back to the marine.
+    if (asym_mode) {
+        if (playeringame[consoleplayer] && players[consoleplayer].mo != NULL) {
+            displayplayer = consoleplayer;
+        }
+        else if (!playeringame[displayplayer] || players[displayplayer].mo == NULL) {
+            displayplayer = 0;
+        }
+    }
 
     if (gamestate == GS_LEVEL && gametic) HU_Erase();
 
@@ -230,8 +237,14 @@ boolean D_Display(void)
     I_UpdateNoBlit();
 
     // draw the view directly
-    if (gamestate == GS_LEVEL && !automapactive && gametic && players[displayplayer].mo != NULL)
-        R_RenderPlayerView(&players[displayplayer]);
+    if (gamestate == GS_LEVEL && !automapactive && gametic) {
+        if (players[displayplayer].mo != NULL) {
+            R_RenderPlayerView(&players[displayplayer]);
+        }
+        else if (players[0].mo != NULL) {
+            R_RenderPlayerView(&players[0]);
+        }
+    }
 
     if (gamestate == GS_LEVEL && gametic) HU_Drawer();
 
@@ -459,6 +472,7 @@ void D_DoomLoop(void)
     // on the main() stack after rAF was already queued, nested into
     // D_RunFrame, and never returned (no "doomloop ready", one black frame).
     printf("Running emscripten_set_main_loop()\n");
+    I_SetMainLoopRunning(true);
     emscripten_set_main_loop(D_RunFrame, 0, 0);
 }
 

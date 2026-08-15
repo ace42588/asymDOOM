@@ -49,6 +49,12 @@ static void PlayerQuitGame(player_t *player)
 
     player_num = player - players;
 
+    // asymDOOM: the marine is the match. A missing slot-0 bit in the
+    // tic mask is a net artifact, not a disconnect — never drop them.
+    if (asym_mode && player_num == 0) {
+        return;
+    }
+
     // asymDOOM: a leaving demon returns its body to AI control.
     ASYM_PlayerLeave(player_num);
 
@@ -80,6 +86,13 @@ static void RunTic(ticcmd_t *cmds, boolean *ingame)
 
     for (i = 0; i < MAXPLAYERS; ++i) {
         if (!demoplayback && playeringame[i] && !ingame[i]) {
+            // Ghost bits in the tic mask (stale ring slots, leftover
+            // clients) must not fire vanilla "Player N left" or detach
+            // a body that was never theirs.
+            if (asym_mode && i != 0 && players[i].mo == NULL) {
+                playeringame[i] = false;
+                continue;
+            }
             PlayerQuitGame(&players[i]);
         }
         else if (!demoplayback && asym_mode && !playeringame[i] && ingame[i]) {
@@ -124,8 +137,21 @@ static void LoadGameSettings(net_gamesettings_t *settings)
                "because there is a client recording a Vanilla demo.\n");
     }
 
-    for (i = 0; i < MAXPLAYERS; ++i) {
-        playeringame[i] = i < settings->num_players;
+    // Vanilla starts every connected slot in-game on tic 0. asymDOOM
+    // only ever starts the marine (slot 0); demons enter through the
+    // per-tic ingame mask via ASYM_PlayerJoin. Using num_players here
+    // marked empty demon slots as present, so the first tic immediately
+    // "quit" them ("Player 5 left the game" was the last overwrite).
+    if (asym_mode) {
+        playeringame[0] = true;
+        for (i = 1; i < MAXPLAYERS; ++i) {
+            playeringame[i] = false;
+        }
+    }
+    else {
+        for (i = 0; i < MAXPLAYERS; ++i) {
+            playeringame[i] = i < settings->num_players;
+        }
     }
 }
 

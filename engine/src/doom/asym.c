@@ -19,6 +19,7 @@
 #include "i_system.h"
 #include "info.h"
 #include "m_argv.h"
+#include "m_menu.h"
 #include "m_random.h"
 #include "p_local.h"
 #include "r_main.h"
@@ -162,6 +163,8 @@ void ASYM_EmitRole(void)
         printf("asym: role marine\n");
     else if (players[consoleplayer].mo != NULL)
         printf("asym: role demon\n");
+    else if (!playeringame[consoleplayer])
+        return; // late joiner: not in-game yet, don't flash spectator
     else
         printf("asym: role spectator\n");
 }
@@ -248,6 +251,7 @@ static boolean Possess(int pnum)
     if (body->info->seesound) S_StartSound(body, body->info->seesound);
 
     if (IsLocal(p)) {
+        displayplayer = consoleplayer;
         printf("asym: hop %s\n", ASYM_SpeciesName(body->type));
         EmitBody(p);
         EmitPoints(p);
@@ -314,7 +318,17 @@ void ASYM_PlayerJoin(int pnum)
         if (IsLocal(&players[pnum])) printf("asym: spectate\n");
     }
 
-    if (IsLocal(&players[pnum])) ASYM_EmitRole();
+    if (IsLocal(&players[pnum])) {
+        // Demon clients skip P_SpawnPlayer, which normally wakes these.
+        ST_Start();
+        HU_Start();
+        // No marine status bar: use the full framebuffer for the 3D view.
+        if (screenblocks < 11) {
+            screenblocks = 11;
+            R_SetViewSize(screenblocks, detailLevel);
+        }
+        ASYM_EmitRole();
+    }
 }
 
 void ASYM_PlayerLeave(int pnum)
@@ -322,6 +336,11 @@ void ASYM_PlayerLeave(int pnum)
     player_t *p = &players[pnum];
 
     if (!asym_mode || pnum == 0) return;
+
+    if (p->mo != NULL && p->mo == players[0].mo) {
+        p->mo = NULL;
+        return;
+    }
 
     if (p->mo != NULL && p->mo->type != MT_PLAYER) {
         // Return the body to AI control; it resumes hunting the marine.

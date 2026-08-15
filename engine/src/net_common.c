@@ -30,9 +30,9 @@
 #include "net_packet.h"
 #include "net_structrw.h"
 
-// connections time out after 30 seconds
-// we changed this for websockets
-#define CONNECTION_TIMEOUT_LEN 4
+// Vanilla is 30s. doom-wasm used 4s, which drops the browser during
+// map precache when NET_CL_Run is not pumping keepalives.
+#define CONNECTION_TIMEOUT_LEN 15
 
 // maximum time between sending packets
 

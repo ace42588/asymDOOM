@@ -21,6 +21,7 @@
 #include "z_zone.h"
 #include "p_local.h"
 
+#include "asym.h"
 #include "doomstat.h"
 
 
@@ -141,7 +142,9 @@ void P_Ticker (void)
     
 		
     for (i=0 ; i<MAXPLAYERS ; i++)
-	if (playeringame[i] && players[i].mo != NULL)
+	if (playeringame[i]
+	    && (players[i].mo != NULL
+		|| (asym_mode && ASYM_IsDemonSlot(i))))
 	    P_PlayerThink (&players[i]);
 			
     P_RunThinkers ();

@@ -20,6 +20,8 @@
 #ifndef __I_TIMER__
 #define __I_TIMER__
 
+#include "doomtype.h"
+
 #define TICRATE 35
 
 // Called by D_DoomLoop,
@@ -31,6 +33,10 @@ int I_GetTimeMS (void);
 
 // Pause for a specified number of ms
 void I_Sleep(int ms);
+
+// When the emscripten rAF loop is running, I_Sleep must not call
+// emscripten_sleep: Asyncify pauses MainLoop and the canvas freezes.
+void I_SetMainLoopRunning(boolean running);
 
 // Initialize timer
 void I_InitTimer(void);

@@ -22,6 +22,13 @@
 #include "i_timer.h"
 #include "doomtype.h"
 
+static boolean main_loop_running = false;
+
+void I_SetMainLoopRunning(boolean running)
+{
+    main_loop_running = running;
+}
+
 //
 // I_GetTime
 // returns time in 1/35th second tics
@@ -63,7 +70,8 @@ int I_GetTimeMS(void)
 
 void I_Sleep(int ms)
 {
-    // SDL_Delay(ms);
+    if (main_loop_running)
+        return;
     emscripten_sleep(ms);
 }
 
