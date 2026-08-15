@@ -146,6 +146,8 @@ static int GetAdjustedTime(void)
     return (time_ms * TICRATE) / 1000;
 }
 
+int D_GetMaketic(void) { return maketic; }
+
 static boolean BuildNewTic(void)
 {
     int gameticdiv;
@@ -164,6 +166,17 @@ static boolean BuildNewTic(void)
         // In drone mode, do not generate any ticcmds.
 
         return false;
+    }
+
+    // asymDOOM late join: do not walk maketic through pre-join history.
+    // Wall-clock production lags recvtic/gametic by thousands of tics and
+    // would clobber ticdata[] slots that still hold unrun received commands
+    // — including the local ingame bit that triggers ASYM_PlayerJoin.
+    if (net_join_tic > 0 && maketic < net_join_tic) {
+        if (gameticdiv + 2 < net_join_tic) {
+            return false;
+        }
+        maketic = net_join_tic;
     }
 
     if (new_sync) {
@@ -214,8 +227,9 @@ void NetUpdate(void)
 
     if (singletics) return;
 
-    // Run network subsystems
-
+    // Receive first so keepalives run during stalls, then build, then
+    // receive again so a window buffered during map load can drain now
+    // that local ticcmds occupy those slots.
     NET_CL_Run();
     NET_SV_Run();
 
@@ -241,6 +255,8 @@ void NetUpdate(void)
             break;
         }
     }
+
+    NET_CL_Run();
 }
 
 static void D_Disconnected(void)
@@ -274,7 +290,10 @@ void D_ReceiveTic(ticcmd_t *ticcmds, boolean *players_mask)
 
     for (i = 0; i < NET_MAXPLAYERS; ++i) {
         if (!drone && i == localplayer) {
-            // This is us.  Don't overwrite it.
+            // Keep locally-built ticcmds. The server omits our own bit from
+            // the mask it sends us, so derive join from asym_join_tic so a
+            // late joiner applies ASYM_PlayerJoin on the same tic as peers.
+            ticdata[recvtic % BACKUPTICS].ingame[i] = ((int)recvtic >= net_join_tic);
         }
         else {
             ticdata[recvtic % BACKUPTICS].cmds[i] = ticcmds[i];
@@ -301,10 +320,14 @@ static void BlockUntilStart(net_gamesettings_t *settings, netgame_startup_callba
 {
     int spins = 0;
 
-    printf("asym: waiting start\n");
-    while (!NET_CL_GetSettings(settings)) {
+    printf("asym: waiting start v2\n");
+    for (;;) {
         NET_CL_Run();
         NET_SV_Run();
+
+        if (NET_CL_GetSettings(settings)) {
+            break;
+        }
 
         if (!net_client_connected) {
             I_Error("Lost connection to server");
@@ -317,7 +340,11 @@ static void BlockUntilStart(net_gamesettings_t *settings, netgame_startup_callba
         if ((spins++ % 20) == 0) {
             printf("asym: waiting start (%d)\n", spins);
         }
-        I_Sleep(50);
+
+        // Yield so the browser can deliver WebSocket GAMESTART, but always
+        // re-check settings immediately after NET_CL_Run above so we never
+        // sleep once IN_GAME is set (ASYNCIFY sleep pre-main-loop can hang).
+        I_Sleep(1);
     }
     printf("asym: got start\n");
 }
@@ -328,6 +355,8 @@ void D_StartNetGame(net_gamesettings_t *settings, netgame_startup_callback_t cal
 
     offsetms = 0;
     recvtic = 0;
+    maketic = 0;
+    memset(ticdata, 0, sizeof(ticdata));
 
     settings->consoleplayer = 0;
     settings->num_players = 1;
@@ -448,9 +477,11 @@ boolean D_InitNetGame(net_connect_data_t *connect_data)
         // address.
         //
 
-        // Generate UID for this instance - it will be used as the websocketsID
+        // Generate UID for this instance - it will be used as the websocketsID.
+        // 0 is the empty-slot sentinel in the websocket address table; 1 is
+        // the dedicated server. Never collide with either.
         srand((unsigned int)time(NULL));
-        instanceUID = rand() % 0xfffe;
+        instanceUID = 2 + (unsigned int)(rand() % 0xfffd);
 
         i = M_CheckParmWithArgs("-connect", 1);
 
@@ -681,6 +712,11 @@ void TryRunTics(void)
         else if (!now_catching && catching_up) {
             printf("asym: catchup 0\n");
             catching_up = false;
+            // Live tip: start contributing real ticcmds into the server
+            // window immediately instead of walking maketic up in real time.
+            if (net_join_tic > 0 && maketic < recvtic) {
+                maketic = recvtic;
+            }
         }
     }
 

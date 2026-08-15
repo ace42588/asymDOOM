@@ -588,6 +588,9 @@ int		iquetail;
 
 void P_RemoveMobj (mobj_t* mobj)
 {
+    if (mobj->player != NULL && mobj->player->mo == mobj)
+        mobj->player->mo = NULL;
+
     if ((mobj->flags & MF_SPECIAL)
 	&& !(mobj->flags & MF_DROPPED)
 	&& (mobj->type != MT_INV)
@@ -717,7 +720,67 @@ void P_SpawnPlayer (mapthing_t* mthing)
 
     p = &players[mthing->type-1];
 
-    if (p->playerstate == PST_REBORN)
+    if (p->mo != NULL && p->mo->type == MT_PLAYER && p->playerstate == PST_LIVE
+	&& (p->weaponowned[wp_fist] || p->weaponowned[wp_pistol]))
+	return;
+
+    // If player->mo was dropped but the body is still in the thinker
+    // list, reattach it. Removing it and spawning at playerstarts[] is
+    // the rubber-band back to spawn. Never reattach across a REBORN —
+    // that must get a fresh G_PlayerReborn loadout.
+    if (p->mo == NULL && p->playerstate != PST_REBORN
+	&& (p->weaponowned[wp_fist] || p->weaponowned[wp_pistol]))
+    {
+	thinker_t *th = thinkercap.next;
+	while (th != &thinkercap)
+	{
+	    if (th->function.acp1 == (actionf_p1)P_MobjThinker)
+	    {
+		mobj_t *old = (mobj_t *)th;
+		if (old->player == p && old->type == MT_PLAYER && old->health > 0)
+		{
+		    p->mo = old;
+		    p->playerstate = PST_LIVE;
+		    // Gun sprites may have been cleared when mo was dropped.
+		    P_SetupPsprites(p);
+		    if (mthing->type-1 == consoleplayer)
+		    {
+			ST_Start();
+			HU_Start();
+		    }
+		    return;
+		}
+	    }
+	    th = th->next;
+	}
+    }
+
+    // Drop any leftover body still tagged to this player (a previous
+    // rescue spawn, or a thinker that outlived player->mo).
+    {
+	thinker_t *th = thinkercap.next;
+	while (th != &thinkercap)
+	{
+	    thinker_t *next = th->next;
+	    if (th->function.acp1 == (actionf_p1)P_MobjThinker)
+	    {
+		mobj_t *old = (mobj_t *)th;
+		if (old->player == p)
+		{
+		    old->player = NULL;
+		    if (p->mo == old)
+			p->mo = NULL;
+		    P_RemoveMobj(old);
+		}
+	    }
+	    th = next;
+	}
+    }
+
+    // PST_LIVE is 0, so a zeroed player_t looks "live" with empty
+    // inventory. Force the vanilla starting loadout in that case too.
+    if (p->playerstate == PST_REBORN
+	|| (!p->weaponowned[wp_fist] && !p->weaponowned[wp_pistol]))
 	G_PlayerReborn (mthing->type-1);
 
     x 		= mthing->x << FRACBITS;
@@ -742,9 +805,17 @@ void P_SpawnPlayer (mapthing_t* mthing)
     p->extralight = 0;
     p->fixedcolormap = 0;
     p->viewheight = VIEWHEIGHT;
+    // viewz is otherwise 1 until the first P_PlayerThink; the 3D view
+    // would render from inside the floor (a black visplane).
+    p->viewz = mobj->z + VIEWHEIGHT;
 
     // setup gun psprite
     P_SetupPsprites (p);
+
+    if (asym_mode && mthing->type == 1)
+	printf("asym: marine loadout pistol=%d fist=%d clip=%d hp=%d\n",
+	       p->weaponowned[wp_pistol], p->weaponowned[wp_fist],
+	       p->ammo[am_clip], p->health);
     
     // give all cards in death match mode
     if (deathmatch)

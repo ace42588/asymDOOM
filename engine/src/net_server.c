@@ -467,6 +467,11 @@ static void NET_SV_AdvanceWindow(void)
             }
 
             if (!recvwindow[0][i].active) {
+                // Still fast-forwarding: synthetic empty cmds keep the
+                // live game moving past join_tic.
+                if (ClientCatchingUp(sv_players[i])) {
+                    continue;
+                }
                 should_advance = false;
                 break;
             }
@@ -554,7 +559,10 @@ static void NET_SV_InitNewClient(net_client_t *client, net_addr_t *addr, net_pro
 
 static boolean ClientCatchingUp(net_client_t *client)
 {
-    return client->late_join && client->acknowledged < client->join_tic;
+    // Until the joiner has acknowledged up to the live window, exclude
+    // them from stalling LatestAcknowledged and synthesize empty ticcmds
+    // so every peer applies ASYM_PlayerJoin at join_tic without freezing.
+    return client->late_join && client->acknowledged < recvwindow_start;
 }
 
 static boolean PlayerLiveAt(int player, unsigned int seq)
@@ -612,7 +620,15 @@ static boolean NET_SV_BuildCanonicalTic(unsigned int seq, net_full_ticcmd_t *cmd
 
     for (i = 0; i < NET_MAXPLAYERS; ++i) {
         if (!PlayerLiveAt(i, seq)) continue;
-        if (!recvwindow[index][i].active) return false;
+        if (!recvwindow[index][i].active) {
+            // Catching-up late joiner: keep the slot in-game with a null
+            // cmd so possession stays lockstep while they fast-forward.
+            if (sv_players[i] != NULL && ClientCatchingUp(sv_players[i])) {
+                cmd->playeringame[i] = true;
+                continue;
+            }
+            return false;
+        }
         cmd->playeringame[i] = true;
         cmd->cmds[i] = recvwindow[index][i].diff;
         if (recvwindow[index][i].latency > cmd->latency) cmd->latency = recvwindow[index][i].latency;
@@ -1547,7 +1563,11 @@ static void NET_SV_PumpSendQueue(net_client_t *client)
     // Replay recorded tics so a late joiner can fast-forward from tic 0.
     pumped = 0;
     while (client->sendseq < (int)recvwindow_start && client->sendseq < tic_history_len && pumped < 8) {
-        if ((int)client->sendseq - (int)client->acknowledged > 40) return;
+        // Allow nearly a full ring of in-flight history. The old limit of 40
+        // combined with skipping deadlock recovery for catch-up clients left
+        // joiners permanently at gametic 0 (black screen) if the first burst
+        // arrived while they were still loading the map.
+        if ((int)client->sendseq - (int)client->acknowledged > BACKUPTICS - 8) return;
 
         cmd = tic_history[client->sendseq];
         cmd.playeringame[client->player_number] = false;
@@ -1574,6 +1594,15 @@ static void NET_SV_PumpSendQueue(net_client_t *client)
         return;
     }
 
+    // Do not clock empty tics before this player has sent tic 0.
+    // Vanilla skips waiting for "self" so a solo client has no RTT, but
+    // that prefetches ~10 empty tics during map precache, before the
+    // browser has called BuildNewTic.
+    if (!client->drone && client->sendseq == 0 && PlayerLiveAt(client->player_number, 0)
+        && !recvwindow[0][client->player_number].active) {
+        return;
+    }
+
     // Check if we can generate a new entry for the send queue
     // using the data in recvwindow.
 
@@ -1591,6 +1620,10 @@ static void NET_SV_PumpSendQueue(net_client_t *client)
         }
 
         if (!recvwindow[recv_index][i].active) {
+            if (sv_players[i] != NULL && ClientCatchingUp(sv_players[i])) {
+                ++num_players;
+                continue;
+            }
             // We do not have this player's ticcmd, so we cannot
             // generate a complete command yet.
 
@@ -1634,7 +1667,16 @@ static void NET_SV_PumpSendQueue(net_client_t *client)
             continue;
         }
 
-        if (!PlayerLiveAt(i, (unsigned int)client->sendseq) || !recvwindow[recv_index][i].active) {
+        if (!PlayerLiveAt(i, (unsigned int)client->sendseq)) {
+            cmd.playeringame[i] = false;
+            continue;
+        }
+
+        if (!recvwindow[recv_index][i].active) {
+            if (sv_players[i] != NULL && ClientCatchingUp(sv_players[i])) {
+                cmd.playeringame[i] = true;
+                continue;
+            }
             cmd.playeringame[i] = false;
             continue;
         }
@@ -1695,7 +1737,7 @@ void NET_SV_CheckDeadlock(net_client_t *client)
         // from this player.
 
         for (i = 0; i < BACKUPTICS; ++i) {
-            if (!recvwindow[client->player_number][i].active) {
+            if (!recvwindow[i][client->player_number].active) {
                 NET_Log("server: deadlock: sending resend request for %d-%d", recvwindow_start + i,
                         recvwindow_start + i + 5);
 
@@ -1810,7 +1852,18 @@ static void NET_SV_RunClient(net_client_t *client)
             NET_Log("server: sent late-join launch to player %d", client->player_number);
         }
         NET_SV_PumpSendQueue(client);
-        if (!ClientCatchingUp(client)) {
+        if (ClientCatchingUp(client)) {
+            // History is unreliable: if the joiner hasn't acked, keep
+            // retransmitting the in-flight window so map-load gaps don't
+            // freeze them on a black frame at gametic 0.
+            int nowtime = I_GetTimeMS();
+            if (client->sendseq > (int)client->acknowledged &&
+                nowtime - client->last_gamedata_time > 500) {
+                NET_SV_SendTics(client, client->acknowledged, (unsigned int)client->sendseq - 1);
+                client->last_gamedata_time = nowtime;
+            }
+        }
+        else {
             NET_SV_CheckDeadlock(client);
         }
     }

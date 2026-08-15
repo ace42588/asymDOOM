@@ -77,6 +77,11 @@ void D_StartNetGame(net_gamesettings_t *settings,
 extern boolean singletics;
 extern int gametic, ticdup;
 
+// Next tic that BuildTiccmd will fill. The client must not apply a
+// server tic until this has passed it, or locally-built marine cmds
+// are still zeros and movement never makes it into the sim.
+int D_GetMaketic(void);
+
 // Check if it is permitted to record a demo with a non-vanilla feature.
 boolean D_NonVanillaRecord(boolean conditional, const char *feature);
 

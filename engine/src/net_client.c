@@ -23,6 +23,7 @@
 #include "deh_main.h"
 #include "deh_str.h"
 #include "doomtype.h"
+#include "d_loop.h"
 #include "i_system.h"
 #include "i_timer.h"
 #include "m_argv.h"
@@ -252,6 +253,22 @@ static void NET_CL_AdvanceWindow(void)
     ticcmd_t ticcmds[NET_MAXPLAYERS];
 
     while (recvwindow[0].active) {
+        // Never lap the shared ticdata[] ring. Late joiners used to pump
+        // NET_CL_Run during P_SetupLevel and advance recvtic thousands of
+        // tics while gametic was still 0, destroying the cmds needed to
+        // leave the black gametic==0 frame.
+        if ((int)recvwindow_start >= gametic / ticdup + BACKUPTICS - 1) {
+            break;
+        }
+
+        // The marine (join tic 0) must not apply a server tic until
+        // BuildNewTic has stored our cmd in that slot. PumpNet during
+        // precache would otherwise advance recvtic past maketic, and
+        // the locally-built inputs would never be the ones that run.
+        if (settings.asym_join_tic == 0 && (int)recvwindow_start >= D_GetMaketic()) {
+            break;
+        }
+
         // Expand tic diff data into d_net.c structures
 
         NET_CL_ExpandFullTiccmd(&recvwindow[0].cmd, recvwindow_start, ticcmds);
@@ -554,8 +571,8 @@ static void NET_CL_ParseGameStart(net_packet_t *packet)
     }
 
     NET_Log("client: beginning game state");
-    printf("asym: gamestart ok player=%d\n", settings.consoleplayer);
     client_state = CLIENT_STATE_IN_GAME;
+    printf("asym: gamestart ok player=%d\n", settings.consoleplayer);
 
     // Clear the receive window
 
@@ -1059,37 +1076,16 @@ boolean NET_CL_GetSettings(net_gamesettings_t *_settings)
 
 void NET_CL_Disconnect(void)
 {
-    int start_time;
-
     if (!net_client_connected) {
         return;
     }
 
     NET_Log("client: beginning disconnect");
     NET_Conn_Disconnect(&client_connection);
-
-    start_time = I_GetTimeMS();
-
-    while (client_connection.state != NET_CONN_STATE_DISCONNECTED &&
-           client_connection.state != NET_CONN_STATE_DISCONNECTED_SLEEP) {
-        if (I_GetTimeMS() - start_time > 5000) {
-            // time out after 5 seconds
-
-            NET_Log("client: no acknowledgement of disconnect received");
-            client_state = CLIENT_STATE_WAITING_START;
-
-            fprintf(stderr, "NET_CL_Disconnect: Timeout while disconnecting "
-                            "from server\n");
-            break;
-        }
-
-        NET_CL_Run();
-        NET_SV_Run();
-
-        I_Sleep(1);
-    }
-
-    // Finished sending disconnect packets, etc.
+    // Send the DISCONNECT packet once. Do not I_Sleep-wait for an ACK:
+    // inside emscripten_set_main_loop that either pauses rAF (Asyncify)
+    // or busy-spins if sleep is disabled.
+    NET_CL_Run();
     NET_Log("client: disconnect complete");
     NET_CL_Shutdown();
 }
