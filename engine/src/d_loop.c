@@ -202,6 +202,12 @@ static boolean BuildNewTic(void)
     }
 
     ticdata[maketic % BACKUPTICS].cmds[localplayer] = cmd;
+    // Clear wrap leftovers only if this slot has not been received yet.
+    // After D_ReceiveTic, recvtic is past maketic; wiping then would drop
+    // demon bits and fire "Player N left the game".
+    if ((int)recvtic <= maketic) {
+        memset(ticdata[maketic % BACKUPTICS].ingame, 0, sizeof(ticdata[0].ingame));
+    }
     ticdata[maketic % BACKUPTICS].ingame[localplayer] = (maketic >= net_join_tic);
 
     ++maketic;

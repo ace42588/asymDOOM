@@ -23,3 +23,5 @@ engine/src/websockets-doom.js
 engine/src/websockets-doom.wasm
 engine/src/websockets-doom.wasm.map
 engine/src/websockets-doom.html
+engine/.emcache/
+engine/config.hin~

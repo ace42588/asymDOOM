@@ -86,10 +86,10 @@ static void RunTic(ticcmd_t *cmds, boolean *ingame)
 
     for (i = 0; i < MAXPLAYERS; ++i) {
         if (!demoplayback && playeringame[i] && !ingame[i]) {
-            // Ghost bits in the tic mask (stale ring slots, leftover
-            // clients) must not fire vanilla "Player N left" or detach
-            // a body that was never theirs.
-            if (asym_mode && i != 0 && players[i].mo == NULL) {
+            // Ghost bits in the tic mask must not fire vanilla
+            // "Player N left" or detach a body that was never theirs.
+            if (asym_mode && i != 0) {
+                ASYM_PlayerLeave(i);
                 playeringame[i] = false;
                 continue;
             }

@@ -787,17 +787,12 @@ void G_Ticker(void)
     for (i = 0; i < MAXPLAYERS; i++)
         if (playeringame[i] && players[i].playerstate == PST_REBORN) G_DoReborn(i);
 
-    // The 3D view is skipped when the marine has no mobj. Keep slot 0
-    // in-game and restore a body before thinkers run so P_PlayerThink
-    // and R_RenderPlayerView see the same actor.
+    // Keep slot 0 in-game. If the marine pointer was dropped, reattach or
+    // spawn before thinkers/draw so the 3D view has a body. P_SpawnPlayer
+    // reattaches a living MT_PLAYER before it would teleport to the start.
     if (asym_mode) {
         playeringame[0] = true;
         if (players[0].mo == NULL && playerstarts[0].type != 0) {
-            static int rescue;
-            if (rescue < 1) {
-                printf("asym: rescue marine tic=%d state=%d net=%d\n", gametic, players[0].playerstate, netgame);
-                rescue++;
-            }
             P_SpawnPlayer(&playerstarts[0]);
         }
     }
