@@ -1,8 +1,10 @@
 import { defineConfig } from "vite";
 
-// Production: the gateway serves web/dist plus the engine artifacts and IWAD
-// from one origin. Dev: `vite dev` proxies API/relay/engine files to the
-// gateway on :8666.
+const apiTarget = process.env.ASYM_API ?? "http://localhost:8666";
+const wsTarget = apiTarget.replace(/^http/, "ws");
+
+// Production: the gateway serves web/dist plus assets from one origin.
+// Dev: `vite dev` proxies API/WS/IWAD to the thin host (ASYM_API, default :8666).
 export default defineConfig({
   base: "./",
   build: {
@@ -10,14 +12,16 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
+    host: "0.0.0.0",
+    allowedHosts: true,
+    headers: {
+      "Cache-Control": "no-store",
+    },
     proxy: {
-      "/api": "http://localhost:8666",
-      "/ws": { target: "ws://localhost:8666", ws: true },
-      "/websockets-doom.js": "http://localhost:8666",
-      "/websockets-doom.wasm": "http://localhost:8666",
-      "/websockets-doom.wasm.map": "http://localhost:8666",
-      "/doom1.wad": "http://localhost:8666",
-      "/default.cfg": "http://localhost:8666",
+      "/api": apiTarget,
+      "/ws": { target: wsTarget, ws: true },
+      "/doom1.wad": apiTarget,
+      "/default.cfg": apiTarget,
     },
   },
 });

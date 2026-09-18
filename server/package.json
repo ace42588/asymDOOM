@@ -6,10 +6,13 @@
   "scripts": {
     "build": "tsc",
     "start": "tsx src/index.ts",
-    "dev": "tsx watch src/index.ts"
+    "dev": "tsx watch src/index.ts",
+    "test": "node --import tsx --test src/test/**/*.test.ts"
   },
   "dependencies": {
-    "ws": "^8.18.0"
+    "koffi": "^3.3.0",
+    "ws": "^8.18.0",
+    "zod": "^3.24.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

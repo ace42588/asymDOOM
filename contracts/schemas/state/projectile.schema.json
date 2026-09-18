@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://asymdoom.dev/schemas/state/projectile.schema.json",
+  "title": "ProjectileView",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "type", "x", "y", "z", "angle"],
+  "properties": {
+    "id": { "type": "integer", "minimum": 0 },
+    "type": { "type": "integer", "minimum": 0 },
+    "x": { "type": "number" },
+    "y": { "type": "number" },
+    "z": { "type": "number" },
+    "angle": { "type": "number" },
+    "momx": { "type": "number" },
+    "momy": { "type": "number" },
+    "momz": { "type": "number" },
+    "sprite": { "type": "integer", "minimum": 0 },
+    "frame": { "type": "integer", "minimum": 0 }
+  }
+}

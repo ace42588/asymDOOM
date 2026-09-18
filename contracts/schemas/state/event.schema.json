@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://asymdoom.dev/schemas/state/event.schema.json",
+  "title": "SimEvent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind"],
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": ["sound", "pain", "hop", "hopfail", "roundReload", "points", "mods", "possess", "release", "spectate", "marineKill", "mapLoaded", "secret"]
+    },
+    "sessionId": { "type": "string" },
+    "bodyId": { "type": "integer" },
+    "species": { "type": "string" },
+    "reason": { "type": "string" },
+    "points": { "type": "integer" },
+    "mods": { "$ref": "../asym/mods.schema.json" },
+    "sound": { "type": "string" },
+    "x": { "type": "number" },
+    "y": { "type": "number" },
+    "z": { "type": "number" }
+  }
+}

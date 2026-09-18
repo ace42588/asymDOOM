@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://asymdoom.dev/schemas/protocol/map-load.schema.json",
+  "title": "MapLoadMessage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "protocolVersion", "mapName", "episode", "map"],
+  "properties": {
+    "type": { "const": "mapLoad" },
+    "protocolVersion": { "const": 1 },
+    "mapName": { "type": "string" },
+    "episode": { "type": "integer", "minimum": 1 },
+    "map": { "type": "integer", "minimum": 1 }
+  }
+}

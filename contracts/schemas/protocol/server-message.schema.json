@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://asymdoom.dev/schemas/protocol/server-message.schema.json",
+  "title": "ServerMessage",
+  "oneOf": [
+    { "$ref": "welcome.schema.json" },
+    { "$ref": "role-change.schema.json" },
+    { "$ref": "snapshot.schema.json" },
+    { "$ref": "map-load.schema.json" },
+    { "$ref": "notice.schema.json" },
+    { "$ref": "bye.schema.json" }
+  ]
+}

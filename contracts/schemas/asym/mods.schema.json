@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://asymdoom.dev/schemas/asym/mods.schema.json",
+  "title": "AsymMods",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["health", "speed", "damage", "rate"],
+  "properties": {
+    "health": { "type": "integer", "minimum": 0, "maximum": 4 },
+    "speed": { "type": "integer", "minimum": 0, "maximum": 4 },
+    "damage": { "type": "integer", "minimum": 0, "maximum": 4 },
+    "rate": { "type": "integer", "minimum": 0, "maximum": 4 }
+  }
+}

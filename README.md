@@ -1,54 +1,85 @@
 # asymDOOM
 
-Asymmetrical multiplayer DOOM. A headless dedicated server runs the lockstep
-netgame; all UI and input live in players' browsers.
+Asymmetrical DOOM: one marine vs player-possessed demons. Authoritative **native** sim (`libasymdoom`) + thin browser clients over a JSON WebSocket protocol.
 
-- The **first player** to connect plays the DOOM marine.
-- Every later player **possesses a living demon** already on the map. Demons
-  keep their vanilla base attributes; players earn points and buy modifiers
-  (health, speed, damage, attack rate) that improve their current body.
-- When a possessed demon dies, the player hops to the next valid demon; if
-  none remain, they spectate through the marine's eyes.
-- The marine is always first person. Possessed demons use first person or a
-  chase camera, chosen by `server/settings.json` (`demonView`).
-- When the marine dies, the demons win. When the marine exits the level, the
-  marine wins.
-- Players can join a session already in progress; unpossessed demons run
-  normal AI.
+## Architecture
 
-## Layout
+- **Host** (`server/`): Node gateway loads `native/build/libasymdoom` via koffi, runs the match tick, possession policy, and delta snapshots.
+- **Native** (`native/`): Vendored doomgeneric (headless) + actor/controller layer + asym possession rules. Builds `libasymdoom`.
+- **Client** (`web/`): Thin client — intent in, **WASM BSP view** (`asym_view`, native `R_RenderPlayerView`) + TS HUD overlays.
+- **Contracts** (`contracts/`): JSON Schema + fixtures for the wire protocol.
 
-| Path | What it is |
-| --- | --- |
-| `engine/` | Chocolate Doom fork (lineage: cloudflare/doom-wasm). Compiled once to WASM; runs in every browser and, headless with `-dedicated`, under Node as the lockstep coordinator. |
-| `server/` | TypeScript gateway: HTTP static hosting, session/role API, WebSocket packet relay (uid routing), spawns the dedicated engine. No game logic. |
-| `web/` | Vite browser client: canvas, pointer lock input, HTML HUD overlay. |
-| `assets/doom1.wad` | Shareware DOOM episode 1 IWAD (redistributable). |
+Authoritative sim stays on the host. The browser WASM module is a **viewer only** (no client-side game ticks).
 
-## Prerequisites
+## Requirements
 
-```sh
-brew install emscripten autoconf automake pkg-config
-```
+- Node 22+
+- clang (macOS/Linux) to build the native library
+- **Emscripten (`emcc`)** to build the client WASM viewer (`npm run build:wasm`)
+- `assets/doom1.wad` (shareware IWAD ships in-repo)
 
-Node 21+ (global `WebSocket` is required for the headless engine).
+## Quick start
 
-## Build and run
-
-```sh
+```bash
 npm install
-npm run build          # engine (emscripten) + web client
-npm start              # gateway on http://localhost:8666
+npm run build:native   # libasymdoom
+npm run build:web      # WASM viewer + production client bundle
+npm start              # http://localhost:8666
 ```
 
-Open `http://localhost:8666` in a browser: the match starts immediately and
-you are the marine. Open more tabs/browsers: each joins as a demon.
+**Dev (API watch + Vite HMR):**
 
-## Engine fork notes
+```bash
+npm run build:native
+npm run build:wasm     # once (or after native render changes)
+npm run dev
+```
 
-Networking is vanilla Chocolate Doom lockstep over WebSockets. The gateway
-relays packets addressed by uint32 uid (`[to:4][from:4][payload]`, delivered
-as `[from:4][payload]`); the dedicated engine is always uid `1`. Asymmetric
-game rules live in `engine/src/doom/asym.[ch]` plus focused hooks in the
-vanilla files, all guarded by net-transmitted game settings so every peer
-stays deterministic.
+Open **http://127.0.0.1:5173** (Vite). It proxies `/api` and `/ws` to the host on `:8666`, so client edits hot-reload while the native sim keeps running.
+
+Open two browser tabs: first join is the marine, later joins possess demons.
+
+## Controls
+
+| Key | Action |
+| --- | --- |
+| WASD | Move / strafe |
+| Arrow left/right | Turn |
+| Arrow up/down | Walk forward/back |
+| Mouse | Look |
+| Shift | Run |
+| Space / Ctrl / LMB | Fire / attack |
+| E / F | Use (doors, switches) |
+| 1–8 | Select weapon (marine) / buy mods 1–4 (demon) |
+| Mouse wheel | Next / previous weapon (marine) |
+| 5 | Hop (demon) |
+| P | Possess (spectator) |
+| [ / ] | Follow prev/next (spectator) |
+
+## Tests
+
+```bash
+npm run build:native
+npm run build:wasm     # required for web WASM viewer tests
+npm test               # contracts → native → server → web
+```
+
+CI runs the same sequence (see `.github/workflows/thin-client.yml`).
+
+## Playtest checklist
+
+See [docs/thin-playtest.md](docs/thin-playtest.md).
+
+## Render validation
+
+- Contract + scene catalog: [docs/render-contract.md](docs/render-contract.md)
+- Defect inventory: [docs/render-defects.md](docs/render-defects.md)
+- WASM viewer smoke: `npm run test -w web` (`web/src/test/wasm-view.test.ts`)
+
+## Protocol
+
+See [contracts/PROTOCOL.md](contracts/PROTOCOL.md).
+
+## License
+
+GPLv2 — see [LICENSE](LICENSE) and [AUTHORS.md](AUTHORS.md). `native/engine/` is doomgeneric (Chocolate Doom lineage). `assets/doom1.wad` is the DOOM shareware IWAD (redistributable under id Software’s shareware terms).

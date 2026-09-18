@@ -1,0 +1,12 @@
+{
+  "name": "asymdoom-native",
+  "version": "0.1.0",
+  "private": true,
+  "description": "libasymdoom headless native embed (doomgeneric + asym rules)",
+  "scripts": {
+    "build": "make -C . all",
+    "build:wasm": "make -C . -f Makefile.wasm",
+    "test": "make -C . test",
+    "smoke": "make -C . smoke"
+  }
+}

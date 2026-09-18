@@ -1,0 +1,124 @@
+################################################################
+# asym_view — Emscripten WASM client renderer (doomgeneric + R_*)
+#
+# Three true-resolution builds (render scale is real, not pixel-doubled):
+#   asym_view_1x  320x200   asym_view_2x  640x400   asym_view_4x  1280x800
+# SCREENWIDTH/SCREENHEIGHT are compile-time in the vanilla renderer, so
+# each scale is its own binary; the client hot-swaps modules on change.
+################################################################
+
+ifeq ($(V),1)
+	VB=
+else
+	VB=@
+endif
+
+CC = emcc
+ROOT := $(abspath .)
+ENG := $(ROOT)/engine
+SRC := $(ROOT)/src
+API := $(ROOT)/api
+WEB_PUBLIC := $(ROOT)/../web/public
+WEB_DIST := $(ROOT)/../web/dist
+
+SCALES = 1 2 4
+RESX_1 := 320
+RESY_1 := 200
+RESX_2 := 640
+RESY_2 := 400
+RESX_4 := 1280
+RESY_4 := 800
+
+# Zone must hold I_VideoBuffer (1 MiB at 4x) + level + lump cache.
+BASE_CFLAGS = -O2 -Wall -Wno-unused-parameter -Wno-unused-variable \
+	-MMD -MP \
+	-DNORMALUNIX -DLINUX -D_DEFAULT_SOURCE -DNO_SOUND \
+	-DDEFAULT_RAM=32 -DMIN_RAM=8 \
+	-I$(ENG) -I$(SRC) -I$(API) -I$(SRC)/events
+
+EXPORTS = _asym_view_create,_asym_view_load_map,_asym_view_set_tick,_asym_view_set_view,_asym_view_set_hide_psprites,_asym_view_apply_doors,_asym_view_apply_movers,_asym_view_sync_actors,_asym_view_sync_projectiles,_asym_view_render,_asym_view_set_scaling,_asym_view_framebuffer,_asym_view_width,_asym_view_height,_asym_view_fb_width,_asym_view_fb_height,_asym_view_destroy,_malloc,_free
+
+LDFLAGS = -s MODULARIZE=1 \
+	-s EXPORT_NAME=createAsymView \
+	-s ALLOW_MEMORY_GROWTH=1 \
+	-s INITIAL_MEMORY=67108864 \
+	-s STACK_SIZE=1048576 \
+	-s EXPORTED_FUNCTIONS='[$(EXPORTS)]' \
+	-s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","HEAPU8","HEAP32","getValue","setValue","UTF8ToString","stringToUTF8","FS","writeArrayToMemory"]' \
+	-s ENVIRONMENT=web,node \
+	-s FILESYSTEM=1 \
+	-s NO_EXIT_RUNTIME=1 \
+	-s ASSERTIONS=1
+
+LIBS = -lm
+
+SRC_DOOM = dummy.o am_map.o doomdef.o doomstat.o dstrings.o d_event.o d_items.o \
+	d_iwad.o d_loop.o d_main.o d_mode.o d_net.o f_finale.o f_wipe.o g_game.o \
+	hu_lib.o hu_stuff.o info.o i_cdmus.o i_endoom.o i_joystick.o i_scale.o \
+	i_sound.o i_system.o i_timer.o memio.o m_argv.o m_bbox.o m_cheat.o \
+	m_config.o m_controls.o m_fixed.o m_menu.o m_misc.o m_random.o \
+	p_ceilng.o p_doors.o p_enemy.o p_floor.o p_inter.o p_lights.o p_map.o \
+	p_maputl.o p_mobj.o p_plats.o p_pspr.o p_saveg.o p_setup.o p_sight.o \
+	p_spec.o p_switch.o p_telept.o p_tick.o p_user.o r_bsp.o r_data.o \
+	r_draw.o r_main.o r_plane.o r_segs.o r_sky.o r_things.o sha1.o sounds.o \
+	statdump.o st_lib.o st_stuff.o s_sound.o tables.o v_video.o wi_stuff.o \
+	w_checksum.o w_file.o w_main.o w_wad.o z_zone.o w_file_stdc.o i_input.o \
+	i_video.o
+
+SRC_VIEW = doomgeneric_wasm.o actors.o control.o asym_rules.o events.o asym_view_impl.o
+
+ALL_JS = $(foreach s,$(SCALES),$(WEB_PUBLIC)/asym_view_$(s)x.js)
+
+.PHONY: all clean check-emcc
+
+all: check-emcc $(ALL_JS)
+
+check-emcc:
+	@command -v emcc >/dev/null 2>&1 || { \
+		echo "error: emcc not found. Install Emscripten SDK and activate emsdk_env.sh"; \
+		exit 1; \
+	}
+
+clean:
+	rm -rf $(foreach s,$(SCALES),$(ROOT)/build/wasm$(s)x) $(ROOT)/build/wasm
+	rm -f $(foreach s,$(SCALES),$(WEB_PUBLIC)/asym_view_$(s)x.js $(WEB_PUBLIC)/asym_view_$(s)x.wasm)
+	rm -f $(WEB_PUBLIC)/asym_view.js $(WEB_PUBLIC)/asym_view.wasm
+
+$(WEB_PUBLIC):
+	mkdir -p $(WEB_PUBLIC)
+
+# ---- per-scale rules -----------------------------------------------------
+define VIEW_RULES
+OBJDIR_$(1) := $$(ROOT)/build/wasm$(1)x
+CFLAGS_$(1) := $$(BASE_CFLAGS) \
+	-DSCREENWIDTH=$$(RESX_$(1)) -DSCREENHEIGHT=$$(RESY_$(1)) \
+	-DDOOMGENERIC_RESX=$$(RESX_$(1)) -DDOOMGENERIC_RESY=$$(RESY_$(1))
+OBJS_$(1) := $$(addprefix $$(OBJDIR_$(1))/,$$(SRC_DOOM) $$(SRC_VIEW))
+
+$$(OBJDIR_$(1)):
+	mkdir -p $$@
+
+$$(OBJDIR_$(1))/%.o: $$(ENG)/%.c | $$(OBJDIR_$(1))
+	@echo [CC $(1)x $$<]
+	$$(VB)$$(CC) $$(CFLAGS_$(1)) -c $$< -o $$@
+
+$$(OBJDIR_$(1))/%.o: $$(SRC)/%.c | $$(OBJDIR_$(1))
+	@echo [CC $(1)x $$<]
+	$$(VB)$$(CC) $$(CFLAGS_$(1)) -c $$< -o $$@
+
+$$(OBJDIR_$(1))/events.o: $$(SRC)/events/events.c | $$(OBJDIR_$(1))
+	@echo [CC $(1)x $$<]
+	$$(VB)$$(CC) $$(CFLAGS_$(1)) -c $$< -o $$@
+
+$$(WEB_PUBLIC)/asym_view_$(1)x.js: $$(OBJS_$(1)) | $$(WEB_PUBLIC)
+	@echo [Linking $$@]
+	$$(VB)$$(CC) $$(CFLAGS_$(1)) $$(OBJS_$(1)) -o $$@ $$(LDFLAGS) $$(LIBS)
+	@if [ -d "$$(WEB_DIST)" ]; then \
+		cp -f $$(WEB_PUBLIC)/asym_view_$(1)x.js $$(WEB_PUBLIC)/asym_view_$(1)x.wasm $$(WEB_DIST)/; \
+	fi
+	@echo [Built: asym_view_$(1)x.js asym_view_$(1)x.wasm]
+
+-include $$(OBJS_$(1):.o=.d)
+endef
+
+$(foreach s,$(SCALES),$(eval $(call VIEW_RULES,$(s))))

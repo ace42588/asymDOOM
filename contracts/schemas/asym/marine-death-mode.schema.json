@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://asymdoom.dev/schemas/asym/marine-death-mode.schema.json",
+  "title": "MarineDeathMode",
+  "type": "string",
+  "enum": ["demons_win", "respawn_as_killer", "marine_respawn"]
+}

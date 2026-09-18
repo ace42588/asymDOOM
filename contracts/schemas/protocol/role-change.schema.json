@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://asymdoom.dev/schemas/protocol/role-change.schema.json",
+  "title": "RoleChangeMessage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "protocolVersion", "role", "controlledId", "followTargetId"],
+  "properties": {
+    "type": { "const": "roleChange" },
+    "protocolVersion": { "const": 1 },
+    "role": { "$ref": "../asym/role.schema.json" },
+    "controlledId": { "type": ["integer", "null"] },
+    "followTargetId": { "type": ["integer", "null"] }
+  }
+}

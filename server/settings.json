@@ -3,7 +3,7 @@
   "episode": 1,
   "map": 1,
   "maxPlayers": 8,
-  "onMarineDeath": "demons_win",
+  "onMarineDeath": "respawn_as_killer",
   "onDemonDeath": "possess_next",
   "demonView": "first_person",
   "possessableTypes": [

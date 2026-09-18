@@ -2,40 +2,101 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>asymDOOM</title>
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
     <main id="stage">
       <!-- The canvas must have no border/padding or SDL mouse coords break. -->
-      <canvas id="canvas" width="800" height="600" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+      <div id="view-wrap">
+        <canvas id="canvas" width="800" height="600" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+        <!-- TS overlay, fixed 4x-reference resolution independent of render scale. -->
+        <canvas id="minimap" width="120" height="120"></canvas>
+      </div>
 
-      <div id="hud">
-        <div id="hud-topline">
-          <div id="hud-role" class="hud-panel">CONNECTING&hellip;</div>
-          <div id="hud-mods" class="hud-panel hidden">
-            <span id="hud-points">0 pts</span>
-            <span class="mod" id="mod-h" title="1: +25% max health">H0</span>
-            <span class="mod" id="mod-s" title="2: +15% speed">S0</span>
-            <span class="mod" id="mod-d" title="3: +25% damage">D0</span>
-            <span class="mod" id="mod-r" title="4: +20% attack rate">R0</span>
+      <div id="touch-controls" class="hidden">
+        <div id="touch-look"></div>
+        <div id="touch-move">
+          <div id="touch-stick">
+            <div id="touch-stick-knob"></div>
           </div>
         </div>
-        <div id="hud-body" class="hud-panel hidden"></div>
-        <div id="hud-banner" class="hidden"></div>
-        <div id="hud-catchup" class="hidden">Catching up&hellip;</div>
-        <div id="hud-hint" class="hidden">
-          Buy while dead or at intermission: <b>1</b> health &middot; <b>2</b> speed
-          &middot; <b>3</b> damage &middot; <b>4</b> attack rate &mdash; 50 pts each
+        <div id="touch-actions">
+          <button type="button" id="touch-use" class="touch-btn" tabindex="-1">USE</button>
+          <button type="button" id="touch-weap" class="touch-btn" tabindex="-1">WEAP</button>
+          <button type="button" id="touch-run" class="touch-btn on" tabindex="-1">RUN</button>
+          <button type="button" id="touch-fire" class="touch-btn touch-fire" tabindex="-1">FIRE</button>
         </div>
-        <div id="hud-settings" class="hud-panel">
-          <div class="settings-title">Server rules</div>
-          <div id="set-marine-death">marine death: demons win</div>
-          <div id="set-demon-death">demon death: possess next</div>
-          <div id="set-demon-view">demon view: first person</div>
+        <div id="touch-demon" class="hidden">
+          <div id="touch-fly" class="hidden">
+            <button type="button" id="touch-fly-up" class="touch-btn" tabindex="-1">UP</button>
+            <button type="button" id="touch-fly-down" class="touch-btn" tabindex="-1">DN</button>
+          </div>
+          <button type="button" id="touch-hop" class="touch-btn" tabindex="-1">HOP</button>
+          <div id="touch-mods">
+            <button type="button" id="touch-mod-h" class="touch-btn touch-mod" tabindex="-1" title="Buy health">H</button>
+            <button type="button" id="touch-mod-s" class="touch-btn touch-mod" tabindex="-1" title="Buy speed">S</button>
+            <button type="button" id="touch-mod-d" class="touch-btn touch-mod" tabindex="-1" title="Buy damage">D</button>
+            <button type="button" id="touch-mod-r" class="touch-btn touch-mod" tabindex="-1" title="Buy attack rate">R</button>
+          </div>
         </div>
       </div>
+
+      <div id="hud">
+        <div id="hud-role" class="hud-panel">CONNECTING&hellip;</div>
+        <div id="hud-marine-vitals" class="hud-panel hidden"></div>
+        <div id="hud-banner" class="hidden"></div>
+        <div id="hud-catchup" class="hidden">Catching up&hellip;</div>
+        <div id="hud-hint" class="hidden"></div>
+      </div>
+
+      <details id="client-settings">
+        <summary>Settings</summary>
+        <div class="settings-body">
+          <label class="settings-row">
+            <span>Mouse sens</span>
+            <input id="set-look-sens" type="range" min="0.25" max="4" step="0.05" value="1" />
+            <span id="set-look-sens-val" class="settings-val">1.00×</span>
+          </label>
+          <label class="settings-row">
+            <span>Render scale</span>
+            <select id="set-render-scale">
+              <option value="auto">Auto (4×)</option>
+              <option value="1">1× (320×200)</option>
+              <option value="2">2× (640×400)</option>
+              <option value="4">4× (1280×800)</option>
+            </select>
+          </label>
+          <label class="settings-row">
+            <span>Canvas scale</span>
+            <select id="set-canvas-scale">
+              <option value="1">1× (locked)</option>
+              <option value="2">2×</option>
+              <option value="fit">Fit to window</option>
+            </select>
+          </label>
+          <label class="settings-row">
+            <span>HUD place</span>
+            <select id="set-hud-placement">
+              <option value="overlay">Overlay</option>
+              <option value="below">Below view</option>
+            </select>
+          </label>
+          <label class="settings-row">
+            <span>HUD scale</span>
+            <input id="set-hud-scale" type="range" min="50" max="150" step="5" value="100" />
+            <span id="set-hud-scale-val" class="settings-val">100%</span>
+          </label>
+          <label class="settings-row settings-check">
+            <input id="set-crosshair" type="checkbox" checked />
+            <span>Crosshair</span>
+          </label>
+        </div>
+      </details>
     </main>
     <script type="module" src="./src/main.ts"></script>
   </body>

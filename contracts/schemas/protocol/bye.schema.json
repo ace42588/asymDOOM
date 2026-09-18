@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://asymdoom.dev/schemas/protocol/bye.schema.json",
+  "title": "ByeMessage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "protocolVersion", "reason"],
+  "properties": {
+    "type": { "const": "bye" },
+    "protocolVersion": { "const": 1 },
+    "reason": { "type": "string" }
+  }
+}

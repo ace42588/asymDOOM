@@ -1,27 +1,20 @@
 node_modules/
 dist/
 *.log
+probe-rr.err
 
-# engine build artifacts (autotools + emscripten)
-engine/Makefile
-engine/Makefile.in
-engine/aclocal.m4
-engine/autom4te.cache/
-engine/autotools/
-engine/config.h
-engine/config.h.in
-engine/config.log
-engine/config.status
-engine/configure
-engine/configure~
-engine/stamp-h1
-engine/**/Makefile
-engine/**/Makefile.in
-engine/**/.deps/
-engine/**/*.o
-engine/src/websockets-doom.js
-engine/src/websockets-doom.wasm
-engine/src/websockets-doom.wasm.map
-engine/src/websockets-doom.html
-engine/.emcache/
-engine/config.hin~
+# Native / WASM build output
+native/build/
+native/exported_symbols.txt
+web/public/asym_view_*.js
+web/public/asym_view_*.wasm
+web/public/asym_view_*.wasm.map
+
+# Runtime
+.default.cfg
+.savegame/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store

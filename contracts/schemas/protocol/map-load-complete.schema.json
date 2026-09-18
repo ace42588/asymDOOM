@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://asymdoom.dev/schemas/protocol/map-load-complete.schema.json",
+  "title": "MapLoadCompleteMessage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "protocolVersion"],
+  "properties": {
+    "type": { "const": "mapLoadComplete" },
+    "protocolVersion": { "const": 1 }
+  }
+}

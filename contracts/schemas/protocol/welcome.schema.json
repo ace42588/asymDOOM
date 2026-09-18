@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://asymdoom.dev/schemas/protocol/welcome.schema.json",
+  "title": "WelcomeMessage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "protocolVersion", "sessionId", "role", "controlledId", "followTargetId", "mapName", "tickRateHz", "serverTime"],
+  "properties": {
+    "type": { "const": "welcome" },
+    "protocolVersion": { "const": 1 },
+    "sessionId": { "type": "string", "minLength": 1 },
+    "role": { "$ref": "../asym/role.schema.json" },
+    "controlledId": { "type": ["integer", "null"] },
+    "followTargetId": { "type": ["integer", "null"] },
+    "mapName": { "type": "string" },
+    "tickRateHz": { "type": "integer", "minimum": 1 },
+    "serverTime": { "type": "integer", "minimum": 0 },
+    "settings": { "type": "object" }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://asymdoom.dev/schemas/protocol/entity-delta.schema.json",
+  "title": "EntityDelta",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["spawn", "update", "despawn"],
+  "properties": {
+    "spawn": { "type": "array", "items": { "type": "object" } },
+    "update": { "type": "array", "items": { "type": "object" } },
+    "despawn": { "type": "array", "items": { "type": "integer", "minimum": 0 } }
+  }
+}

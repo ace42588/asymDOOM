@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://asymdoom.dev/schemas/state/actor.schema.json",
+  "title": "ActorView",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "kind", "type", "x", "y", "z", "angle", "health"],
+  "properties": {
+    "id": { "type": "integer", "minimum": 0 },
+    "kind": { "type": "string", "enum": ["marine", "monster", "item"] },
+    "type": { "type": "integer", "minimum": 0 },
+    "typeName": { "type": "string" },
+    "x": { "type": "number" },
+    "y": { "type": "number" },
+    "z": { "type": "number" },
+    "angle": { "type": "number" },
+    "momx": { "type": "number", "default": 0 },
+    "momy": { "type": "number", "default": 0 },
+    "momz": { "type": "number", "default": 0 },
+    "health": { "type": "integer" },
+    "maxHealth": { "type": "integer" },
+    "sprite": { "type": "integer", "minimum": 0 },
+    "frame": { "type": "integer", "minimum": 0 },
+    "flags": { "type": "integer", "minimum": 0 },
+    "controllerSessionId": { "type": ["string", "null"] }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://asymdoom.dev/schemas/protocol/notice.schema.json",
+  "title": "NoticeMessage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "protocolVersion", "code", "message"],
+  "properties": {
+    "type": { "const": "notice" },
+    "protocolVersion": { "const": 1 },
+    "code": { "type": "string" },
+    "message": { "type": "string" },
+    "secondsUntilAction": { "type": "number", "minimum": 0 }
+  }
+}

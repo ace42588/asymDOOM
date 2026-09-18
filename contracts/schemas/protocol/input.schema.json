@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://asymdoom.dev/schemas/protocol/input.schema.json",
+  "title": "ClientInputMessage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "protocolVersion", "seq", "input"],
+  "properties": {
+    "type": { "const": "input" },
+    "protocolVersion": { "const": 1 },
+    "seq": { "type": "integer", "minimum": 0 },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["intent"],
+      "properties": {
+        "intent": { "$ref": "intent.schema.json" },
+        "bodySwap": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "targetId": { "type": ["integer", "null"] }
+          }
+        },
+        "spectatorPossess": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "targetId": { "type": ["integer", "null"] }
+          }
+        },
+        "spectatorFollow": {
+          "type": ["string", "null"],
+          "enum": ["next", "prev", null]
+        }
+      }
+    }
+  }
+}

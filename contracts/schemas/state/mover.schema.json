@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://asymdoom.dev/schemas/state/mover.schema.json",
+  "title": "MoverView",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "kind", "state", "floor", "ceiling"],
+  "properties": {
+    "id": { "type": "integer", "minimum": 0 },
+    "kind": { "type": "string", "enum": ["plat", "floor", "ceiling"] },
+    "state": { "type": "string", "enum": ["waiting", "up", "down"] },
+    "floor": { "type": "number" },
+    "ceiling": { "type": "number" },
+    "x": { "type": "number" },
+    "y": { "type": "number" },
+    "z": { "type": "number" }
+  }
+}

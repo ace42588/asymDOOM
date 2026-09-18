@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://asymdoom.dev/schemas/protocol/snapshot.schema.json",
+  "title": "SnapshotMessage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "protocolVersion", "tick", "serverTime", "mapName", "actors", "projectiles", "doors"],
+  "properties": {
+    "type": { "const": "snapshot" },
+    "protocolVersion": { "const": 1 },
+    "tick": { "type": "integer", "minimum": 0 },
+    "serverTime": { "type": "integer", "minimum": 0 },
+    "mapName": { "type": "string", "minLength": 1 },
+    "role": { "$ref": "../asym/role.schema.json" },
+    "controlledId": { "type": ["integer", "null"] },
+    "followTargetId": { "type": ["integer", "null"] },
+    "points": { "type": "integer", "minimum": 0 },
+    "mods": { "$ref": "../asym/mods.schema.json" },
+    "marine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["health", "armor", "ammo", "weapon"],
+      "properties": {
+        "health": { "type": "integer" },
+        "armor": { "type": "integer" },
+        "ammo": { "type": "integer" },
+        "weapon": { "type": "integer" },
+        "ammoCounts": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "type": "integer", "minimum": 0 }
+        },
+        "maxAmmo": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "type": "integer", "minimum": 0 }
+        },
+        "weapons": { "type": "integer", "minimum": 0 },
+        "cards": { "type": "integer", "minimum": 0 },
+        "damagecount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "actors": { "$ref": "entity-delta.schema.json" },
+    "projectiles": { "$ref": "entity-delta.schema.json" },
+    "doors": { "$ref": "entity-delta.schema.json" },
+    "movers": { "$ref": "entity-delta.schema.json" },
+    "events": {
+      "type": "array",
+      "items": { "$ref": "../state/event.schema.json" }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://asymdoom.dev/schemas/protocol/intent.schema.json",
+  "title": "PlayerIntent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["forward", "strafe", "turnDelta", "run", "fire", "use"],
+  "properties": {
+    "forward": { "type": "number", "minimum": -1, "maximum": 1 },
+    "strafe": { "type": "number", "minimum": -1, "maximum": 1 },
+    "turnDelta": { "type": "number" },
+    "run": { "type": "boolean" },
+    "fire": { "type": "boolean" },
+    "use": { "type": "boolean" },
+    "lookFly": { "type": "integer", "enum": [0, 1, 2], "default": 0 },
+    "arti": { "type": "integer", "minimum": 0, "maximum": 63, "default": 0 }
+  }
+}

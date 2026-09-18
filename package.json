@@ -2,16 +2,26 @@
   "name": "asymdoom",
   "version": "0.1.0",
   "private": true,
-  "description": "Asymmetrical DOOM: headless dedicated server, browser players. Marine vs player-possessed demons.",
+  "description": "Asymmetrical DOOM: authoritative native sim, thin browser clients. Marine vs player-possessed demons.",
   "workspaces": [
+    "contracts",
+    "native",
     "server",
     "web"
   ],
   "scripts": {
-    "build:engine": "engine/scripts/build.sh",
-    "build:web": "npm run build -w web",
-    "build": "npm run build:engine && npm run build:web",
-    "start": "npm run start -w server",
-    "dev": "npm run dev -w server"
+    "build:native": "npm run build -w native",
+    "build:wasm": "make -C native -f Makefile.wasm",
+    "build:web": "npm run build:wasm && npm run build -w web",
+    "build": "npm run build:native && npm run build:web",
+    "test": "npm run test -w contracts && npm run test -w native && npm run test -w server && npm run test -w web",
+    "start": "npm run build:web && npm run start -w server",
+    "dev": "node scripts/dev.mjs"
+  },
+  "allowScripts": {
+    "koffi@3.3.0": true
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.1"
   }
 }

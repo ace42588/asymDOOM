@@ -1,0 +1,33 @@
+{
+  "type": "snapshot",
+  "protocolVersion": 1,
+  "tick": 11,
+  "serverTime": 330,
+  "actors": {
+    "spawn": [],
+    "update": [
+      {
+        "id": 1,
+        "kind": "marine",
+        "type": 0,
+        "x": 16,
+        "y": 0,
+        "z": 0,
+        "angle": 0,
+        "health": 100
+      }
+    ],
+    "despawn": []
+  },
+  "projectiles": {
+    "spawn": [],
+    "update": [],
+    "despawn": []
+  },
+  "doors": {
+    "spawn": [],
+    "update": [],
+    "despawn": []
+  },
+  "mapName": "E1M1"
+}

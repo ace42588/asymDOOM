@@ -17,6 +17,12 @@ body {
   color: #e8e6e3;
   font-family: "VT323", ui-monospace, monospace;
   font-size: 18px;
+  overflow: hidden;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  overscroll-behavior: none;
 }
 
 #stage {
@@ -27,13 +33,34 @@ body {
   height: 100%;
 }
 
+#view-wrap {
+  position: relative;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
 canvas#canvas {
   background: #000;
-  width: min(100vw, 133.33vh);
-  height: auto;
-  aspect-ratio: 4 / 3;
-  flex-shrink: 0;
+  /* CSS scale is set from boot.ts (canvas scale setting). */
+  width: 800px;
+  height: 600px;
   image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  touch-action: none;
+}
+
+/* Minimap overlay: fixed 4x-reference backing store (120px square within a
+   1280-wide world), so its fidelity and on-screen proportion never follow
+   the WASM render scale. Offsets mirror the old 12px/1280 margins. */
+canvas#minimap {
+  position: absolute;
+  top: 1.5%;
+  right: 0.94%;
+  width: 9.375%;
+  aspect-ratio: 1 / 1;
+  pointer-events: none;
+  image-rendering: pixelated;
+  z-index: 2;
 }
 
 #hud {
@@ -43,15 +70,11 @@ canvas#canvas {
   display: flex;
   flex-direction: column;
   padding: 12px;
-}
-
-#hud-topline {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
+  z-index: 3;
 }
 
 .hud-panel {
+  align-self: flex-start;
   background: rgba(10, 10, 12, 0.72);
   border: 1px solid #3a3a40;
   padding: 4px 10px;
@@ -61,28 +84,6 @@ canvas#canvas {
 #hud-role {
   color: #ffb000;
   text-transform: uppercase;
-}
-
-#hud-role.demon {
-  color: #ff5a3c;
-}
-
-#hud-mods span {
-  margin-left: 10px;
-}
-
-#hud-mods .mod {
-  color: #9a9aa4;
-}
-
-#hud-mods .mod.owned {
-  color: #7cff6b;
-}
-
-#hud-body {
-  align-self: flex-start;
-  margin-top: 8px;
-  color: #ff5a3c;
 }
 
 #hud-banner {
@@ -98,14 +99,22 @@ canvas#canvas {
   text-transform: uppercase;
 }
 
+#hud-marine-vitals {
+  align-self: flex-start;
+  margin-top: 8px;
+  color: #7cff6b;
+  letter-spacing: 2px;
+}
+
 #hud-hint {
   position: absolute;
-  bottom: 10px;
+  bottom: 32%;
   left: 0;
   right: 0;
   text-align: center;
-  color: #9a9aa4;
-  font-size: 15px;
+  color: #e8e6e3;
+  font-size: 16px;
+  text-shadow: 0 1px 2px #000, 0 0 8px #000;
 }
 
 #hud-catchup {
@@ -121,24 +130,294 @@ canvas#canvas {
   color: #ffb000;
 }
 
-#hud-settings {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  font-size: 14px;
-  color: #9a9aa4;
-  line-height: 1.4;
-  text-align: right;
-  max-width: 280px;
-}
-
-#hud-settings .settings-title {
-  color: #c8c8d0;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  margin-bottom: 2px;
-}
-
 .hidden {
   display: none !important;
+}
+
+#client-settings {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+  pointer-events: auto;
+  max-width: min(280px, calc(100vw - 24px));
+  background: rgba(10, 10, 12, 0.88);
+  border: 1px solid #3a3a40;
+  color: #e8e6e3;
+  font-family: inherit;
+  font-size: 16px;
+  letter-spacing: 1px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#client-settings > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 6px 12px;
+  color: #ffb000;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+#client-settings > summary::-webkit-details-marker {
+  display: none;
+}
+
+#client-settings > summary::before {
+  content: "▸ ";
+}
+
+#client-settings[open] > summary::before {
+  content: "▾ ";
+}
+
+#client-settings .settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 12px 12px;
+  border-top: 1px solid #3a3a40;
+}
+
+#client-settings .settings-row {
+  display: grid;
+  grid-template-columns: 88px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  cursor: default;
+}
+
+#client-settings .settings-row.settings-check {
+  grid-template-columns: auto 1fr;
+}
+
+#client-settings .settings-val {
+  min-width: 48px;
+  text-align: right;
+  color: #ffb000;
+  font-variant-numeric: tabular-nums;
+}
+
+#client-settings select,
+#client-settings input[type="range"] {
+  width: 100%;
+  font-family: inherit;
+  font-size: 14px;
+  background: #1a1a1e;
+  color: #e8e6e3;
+  border: 1px solid #3a3a40;
+}
+
+#client-settings select {
+  padding: 2px 4px;
+}
+
+#client-settings input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #ffb000;
+}
+
+body.touch-on #hud-hint {
+  display: none !important;
+}
+
+#touch-controls {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+#touch-look {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 42%;
+  bottom: 170px;
+  pointer-events: auto;
+  touch-action: none;
+  z-index: 1;
+}
+
+#touch-move {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 52%;
+  height: 70%;
+  pointer-events: auto;
+  touch-action: none;
+  z-index: 2;
+}
+
+#touch-stick {
+  position: absolute;
+  left: calc(18px + env(safe-area-inset-left, 0px));
+  bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  border: 2px solid rgba(232, 230, 227, 0.3);
+  background: rgba(10, 10, 12, 0.32);
+  pointer-events: none;
+}
+
+#touch-stick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: rgba(255, 176, 0, 0.58);
+  box-shadow: 0 0 12px rgba(255, 176, 0, 0.35);
+  transform: translate(-50%, -50%);
+}
+
+#touch-actions {
+  position: absolute;
+  right: calc(14px + env(safe-area-inset-right, 0px));
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  pointer-events: auto;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 64px 64px 92px;
+  grid-template-rows: 64px 64px;
+  gap: 10px;
+  align-items: end;
+}
+
+#touch-use {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+#touch-weap {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+#touch-run {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+#touch-fire {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  width: 92px;
+  height: 92px;
+  font-size: 22px;
+  color: #1a0a08;
+  background: rgba(255, 90, 60, 0.82);
+  border-color: #ff5a3c;
+  z-index: 4;
+}
+
+#touch-demon {
+  position: absolute;
+  right: calc(14px + env(safe-area-inset-right, 0px));
+  bottom: calc(160px + env(safe-area-inset-bottom, 0px));
+  pointer-events: auto;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+#touch-fly {
+  display: flex;
+  gap: 8px;
+}
+
+#touch-mods {
+  display: flex;
+  gap: 8px;
+}
+
+.touch-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 1px solid #3a3a40;
+  background: rgba(10, 10, 12, 0.72);
+  color: #e8e6e3;
+  font-family: inherit;
+  font-size: 16px;
+  letter-spacing: 1px;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  appearance: none;
+}
+
+.touch-btn.pressed,
+.touch-btn:active {
+  background: rgba(255, 176, 0, 0.45);
+  border-color: #ffb000;
+  color: #ffb000;
+}
+
+.touch-btn.on {
+  border-color: #7cff6b;
+  color: #7cff6b;
+}
+
+#touch-hop {
+  width: 64px;
+  height: 64px;
+  color: #ff5a3c;
+  border-color: #ff5a3c;
+}
+
+.touch-mod {
+  width: 48px;
+  height: 48px;
+  font-size: 18px;
+}
+
+@media (max-height: 480px), (max-width: 480px) {
+  #touch-stick {
+    width: 104px;
+    height: 104px;
+  }
+
+  #touch-stick-knob {
+    width: 44px;
+    height: 44px;
+  }
+
+  #touch-actions {
+    grid-template-columns: 52px 52px 76px;
+    grid-template-rows: 52px 52px;
+    gap: 8px;
+  }
+
+  #touch-use,
+  #touch-run,
+  #touch-weap,
+  #touch-hop,
+  .touch-btn {
+    width: 52px;
+    height: 52px;
+    font-size: 14px;
+  }
+
+  #touch-fire {
+    width: 76px;
+    height: 76px;
+    font-size: 18px;
+  }
+
+  #touch-demon {
+    bottom: calc(132px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .touch-mod {
+    width: 40px;
+    height: 40px;
+  }
 }

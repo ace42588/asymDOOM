@@ -1,18 +1,14 @@
-// HTML HUD driven by the engine's stdout protocol.
-//
-// Lines the asym engine fork emits (in addition to vanilla "doom: N, ..."):
-//   asym: role marine|demon|spectator
-//   asym: body <species> hp <n> maxhp <n>
-//   asym: points <n> mods <h> <s> <d> <r>
-//   asym: hop <species>
-//   asym: spectate
-//   asym: win marine|demons
+// Thin-client HUD helpers (DOM only — no stdout scrape).
+
+import { setTouchBody, setTouchRole } from "./touch";
 
 const el = (id: string) => document.getElementById(id)!;
 
 let bannerTimer: number | undefined;
+let currentRole = "";
+let hintHeld = false;
 
-function banner(text: string, sticky = false) {
+export function banner(text: string, sticky = false) {
   const b = el("hud-banner");
   b.textContent = text;
   b.classList.remove("hidden");
@@ -22,107 +18,64 @@ function banner(text: string, sticky = false) {
   }
 }
 
-export function setRole(role: string) {
-  const r = el("hud-role");
-  r.textContent = role === "marine" ? "You are the Marine" : role === "demon" ? "Demon" : "Spectating";
-  r.classList.toggle("demon", role !== "marine");
+export function setCatchup(visible: boolean, text?: string) {
+  const catchup = el("hud-catchup");
+  if (text != null) catchup.textContent = text;
+  catchup.classList.toggle("hidden", !visible);
+}
+
+function hintHtml(role: string): string {
   if (role === "demon") {
-    el("hud-mods").classList.remove("hidden");
-    el("hud-hint").classList.remove("hidden");
+    return "<b>5</b> hop to another demon &middot; <b>E/F</b> doors or consume (+20 pts / HoT) or scavenge gore (+5) &middot; Buy: <b>1</b> health &middot; <b>2</b> speed &middot; <b>3</b> damage &middot; <b>4</b> attack rate &mdash; 25 pts each";
   }
+  if (role === "spectator") {
+    return "<b>P</b> possess &middot; <b>[</b>/<b>]</b> follow &middot; <b>5</b> hop when possessed";
+  }
+  return "<b>LMB/Space/Ctrl</b> fire &middot; <b>E</b> use &middot; <b>1–8</b> weapons &middot; wheel cycle";
 }
 
-export function applySettings(settings: {
-  onMarineDeath?: string;
-  onDemonDeath?: string;
-  demonView?: string;
-}) {
-  const label = (v: string | undefined, fallback: string) => (v ?? fallback).replace(/_/g, " ");
-  el("set-marine-death").textContent = `marine death: ${label(settings.onMarineDeath, "demons_win")}`;
-  el("set-demon-death").textContent = `demon death: ${label(settings.onDemonDeath, "possess_next")}`;
-  el("set-demon-view").textContent = `demon view: ${label(settings.demonView, "first_person")}`;
+function syncHint() {
+  const hint = el("hud-hint");
+  const roleKnown = currentRole === "marine" || currentRole === "demon" || currentRole === "spectator";
+  hint.innerHTML = hintHtml(currentRole);
+  hint.classList.toggle("hidden", !hintHeld || !roleKnown);
 }
 
-export function handleLine(line: string): void {
-  if (line.startsWith("doom: 10")) {
-    banner("Game started");
-    return;
-  }
-  if (line.startsWith("Running emscripten_set_main_loop")) {
-    el("hud-catchup").classList.add("hidden");
-    return;
-  }
-  if (
-    line.startsWith("asym: waiting") ||
-    line.startsWith("asym: got ") ||
-    line.startsWith("asym: graphics") ||
-    line.startsWith("asym: gamestart") ||
-    line.startsWith("asym: loading") ||
-    line.startsWith("asym: frame") ||
-    line.startsWith("asym: setup") ||
-    line.startsWith("asym: map ") ||
-    line.startsWith("asym: level ") ||
-    line.startsWith("asym: renderer")
-  ) {
-    const catchup = el("hud-catchup");
-    catchup.textContent = line.replace(/^asym:\s*/, "");
-    catchup.classList.toggle(
-      "hidden",
-      line.startsWith("asym: got start") ||
-        line.startsWith("asym: graphics") ||
-        line.startsWith("asym: renderer") ||
-        line.startsWith("asym: map loaded"),
-    );
-    return;
-  }
-  if (!line.startsWith("asym: ")) return;
-  const parts = line.slice(6).trim().split(/\s+/);
+export function initHud() {
+  window.addEventListener("keydown", (e) => {
+    if (e.key.toLowerCase() !== "h" || e.repeat) return;
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    e.preventDefault();
+    hintHeld = true;
+    syncHint();
+  });
+  window.addEventListener("keyup", (e) => {
+    if (e.key.toLowerCase() !== "h") return;
+    hintHeld = false;
+    syncHint();
+  });
+  window.addEventListener("blur", () => {
+    hintHeld = false;
+    syncHint();
+  });
+}
 
-  switch (parts[0]) {
-    case "role":
-      setRole(parts[1]);
-      break;
+export function setRole(role: string) {
+  el("hud-role").classList.add("hidden");
+  currentRole = role;
+  syncHint();
+  setTouchRole(role);
+}
 
-    case "body": {
-      el("hud-body").classList.remove("hidden");
-      el("hud-body").textContent = `${parts[1]}  ${parts[3]}/${parts[5]} HP`;
-      break;
-    }
+/** Possessed body for touch chrome (flyers). Canvas STBAR is the on-screen HUD. */
+export function setDemonBody(species: string | null) {
+  setTouchBody(species ?? "");
+}
 
-    case "points": {
-      el("hud-points").textContent = `${parts[1]} pts`;
-      const mods: Array<[string, string]> = [
-        ["mod-h", "H"],
-        ["mod-s", "S"],
-        ["mod-d", "D"],
-        ["mod-r", "R"],
-      ];
-      mods.forEach(([id, letter], i) => {
-        const lvl = Number(parts[3 + i] ?? 0);
-        const m = el(id);
-        m.textContent = `${letter}${lvl}`;
-        m.classList.toggle("owned", lvl > 0);
-      });
-      break;
-    }
-
-    case "hop":
-      setRole("demon");
-      banner(`Possessed ${parts[1]}`);
-      break;
-
-    case "spectate":
-      setRole("spectator");
-      el("hud-body").classList.add("hidden");
-      banner("No demons left - spectating the marine", true);
-      break;
-
-    case "win":
-      banner(parts[1] === "demons" ? "DEMONS WIN" : "THE MARINE PREVAILS", true);
-      break;
-
-    case "catchup":
-      el("hud-catchup").classList.toggle("hidden", parts[1] !== "1");
-      break;
-  }
+export function setMarineVitals(v: { health: number; armor: number; ammo: number; weapon: number } | null) {
+  const node = document.getElementById("hud-marine-vitals");
+  if (!node) return;
+  // Canvas STBAR is the marine HUD; keep the DOM readout hidden.
+  node.classList.add("hidden");
+  void v;
 }

@@ -1,0 +1,44 @@
+{
+  "type": "snapshot",
+  "protocolVersion": 1,
+  "tick": 10,
+  "serverTime": 300,
+  "role": "marine",
+  "controlledId": 1,
+  "followTargetId": null,
+  "points": 0,
+  "mods": {
+    "health": 0,
+    "speed": 0,
+    "damage": 0,
+    "rate": 0
+  },
+  "actors": {
+    "spawn": [
+      {
+        "id": 1,
+        "kind": "marine",
+        "type": 0,
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "angle": 0,
+        "health": 100
+      }
+    ],
+    "update": [],
+    "despawn": []
+  },
+  "projectiles": {
+    "spawn": [],
+    "update": [],
+    "despawn": []
+  },
+  "doors": {
+    "spawn": [],
+    "update": [],
+    "despawn": []
+  },
+  "events": [],
+  "mapName": "E1M1"
+}

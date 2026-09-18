@@ -1,0 +1,32 @@
+name: thin-client
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm install
+      - name: Install Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.74
+      - name: Build native libasymdoom
+        run: npm run build:native
+      - name: Build WASM viewer
+        run: npm run build:wasm
+      - run: npm run test -w contracts
+      - run: npm run test -w native
+      - run: npm run test -w server
+      - run: npm run test -w web
+      - run: npm run build -w web
