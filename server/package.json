@@ -8,7 +8,7 @@
     "start": "tsx src/index.ts",
     "start:prod": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
-    "test": "node --import tsx --test --test-isolation=none --test-concurrency=1 src/test/**/*.test.ts"
+    "test": "node --import tsx --test --experimental-test-isolation=none --test-concurrency=1 src/test/**/*.test.ts"
   },
   "dependencies": {
     "koffi": "^3.3.0",
