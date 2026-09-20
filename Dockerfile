@@ -1,15 +1,6 @@
 # syntax=docker/dockerfile:1
-# Multi-stage image for Coolify / GHCR. Build on GitHub Actions, not the Coolify host.
-
-FROM emscripten/emsdk:3.1.74 AS wasm
-USER root
-WORKDIR /src
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends make \
-    && rm -rf /var/lib/apt/lists/*
-COPY native native
-COPY web/public web/public
-RUN make -C native -f Makefile.wasm
+# Host-only image for Coolify / GHCR. No Emscripten / no SPA.
+# Web client is deployed separately to GitHub Pages.
 
 FROM node:22-bookworm AS build
 WORKDIR /app
@@ -22,10 +13,12 @@ COPY native/package.json native/
 COPY server/package.json server/
 COPY web/package.json web/
 RUN npm ci
-COPY . .
-COPY --from=wasm /src/web/public/ ./web/public/
+COPY contracts contracts
+COPY native native
+COPY server server
+COPY assets/doom1.wad assets/doom1.wad
 RUN CC=clang npm run build:native \
-    && npm run build -w web \
+    && npm run build:contracts \
     && npm run build -w server \
     && npm prune --omit=dev
 
@@ -37,10 +30,11 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/package.json /app/package-lock.json ./
 COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/contracts/package.json ./contracts/package.json
+COPY --from=build /app/contracts/dist ./contracts/dist
 COPY --from=build /app/server/package.json ./server/package.json
 COPY --from=build /app/server/dist ./server/dist
 COPY --from=build /app/server/settings.json ./server/settings.json
-COPY --from=build /app/web/dist ./web/dist
 COPY --from=build /app/native/build/libasymdoom.so ./native/build/libasymdoom.so
 COPY --from=build /app/assets/doom1.wad ./assets/doom1.wad
 RUN chown -R node:node /app

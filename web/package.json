@@ -17,6 +17,7 @@
     "vite": "^6.0.0"
   },
   "dependencies": {
+    "asymdoom-contracts": "*",
     "ws": "^8.18.0"
   }
 }

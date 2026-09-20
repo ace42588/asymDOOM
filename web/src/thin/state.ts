@@ -1,6 +1,7 @@
 /** Types matching contracts/schemas (PROTOCOL.md). */
 
-export const PROTOCOL_VERSION = 1 as const;
+export { PROTOCOL_VERSION } from "asymdoom-contracts";
+import { PROTOCOL_VERSION } from "asymdoom-contracts";
 
 export type Role = "marine" | "demon" | "spectator";
 

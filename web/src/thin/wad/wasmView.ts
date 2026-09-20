@@ -39,9 +39,18 @@ declare global {
   }
 }
 
-const IWAD_PATH = "/doom1.wad";
+/** Virtual path inside the WASM FS (not an HTTP URL). */
+const IWAD_FS_PATH = "/doom1.wad";
+/** HTTP URL for fetching the IWAD from the sim host. Set via setIwadHttpUrl / join.wadUrl. */
+let iwadHttpUrl: string | null = null;
 /** Bump when native viewer ABI changes so browsers drop stale artifacts. */
 const WASM_REV = "res1";
+
+/** Configure where the browser fetches doom1.wad (absolute sim URL). */
+export function setIwadHttpUrl(url: string) {
+  iwadHttpUrl = url;
+  iwadCache = null;
+}
 
 interface Bin {
   scale: RenderScale;
@@ -78,12 +87,19 @@ function parseMapName(name: string): { ep: number; map: number } {
   return { ep: 1, map: 1 };
 }
 
+/** Pages-safe asset URL (respects Vite base for project sites). */
+function assetUrl(file: string): string {
+  const base = import.meta.env.BASE_URL ?? "./";
+  const prefix = base.endsWith("/") ? base : `${base}/`;
+  return `${prefix}${file}?v=${WASM_REV}`;
+}
+
 function scriptUrl(scale: RenderScale): string {
-  return `/asym_view_${scale}x.js?v=${WASM_REV}`;
+  return assetUrl(`asym_view_${scale}x.js`);
 }
 
 function wasmUrl(scale: RenderScale): string {
-  return `/asym_view_${scale}x.wasm?v=${WASM_REV}`;
+  return assetUrl(`asym_view_${scale}x.wasm`);
 }
 
 async function loadBrowserFactory(scale: RenderScale): Promise<ModuleFactory> {
@@ -105,7 +121,9 @@ async function loadBrowserFactory(scale: RenderScale): Promise<ModuleFactory> {
 
 async function fetchIwad(): Promise<Uint8Array> {
   if (iwadCache) return iwadCache;
-  const res = await fetch(IWAD_PATH);
+  const url = iwadHttpUrl;
+  if (!url) throw new Error("IWAD HTTP URL not set (call setIwadHttpUrl / pass join.wadUrl)");
+  const res = await fetch(url);
   if (!res.ok) throw new Error(`IWAD fetch failed: ${res.status}`);
   iwadCache = new Uint8Array(await res.arrayBuffer());
   return iwadCache;
@@ -125,13 +143,13 @@ async function bootBin(scale: RenderScale): Promise<Bin> {
   });
   const buf = await fetchIwad();
   try {
-    if (!m.FS.analyzePath(IWAD_PATH).exists) {
-      m.FS.writeFile(IWAD_PATH, buf);
+    if (!m.FS.analyzePath(IWAD_FS_PATH).exists) {
+      m.FS.writeFile(IWAD_FS_PATH, buf);
     }
   } catch {
-    m.FS.writeFile(IWAD_PATH, buf);
+    m.FS.writeFile(IWAD_FS_PATH, buf);
   }
-  const rc = m.ccall("asym_view_create", "number", ["string"], [IWAD_PATH]) as number;
+  const rc = m.ccall("asym_view_create", "number", ["string"], [IWAD_FS_PATH]) as number;
   if (rc !== 0) throw new Error(`asym_view_create failed (${rc})`);
   m.ccall("asym_view_set_hide_psprites", null, ["number"], [1]);
   return { scale, mod: m, loadedEp: 1, loadedMap: 1 };

@@ -1,15 +1,22 @@
 #!/usr/bin/env node
 /**
- * Headless thin-client smoke: two WS clients, assert marine+demon roles + snapshots.
+ * Headless thin-client smoke: join + two WS clients, assert marine+demon roles + snapshots.
  * Usage: ASYM_URL=http://127.0.0.1:8666 node web/scripts/probe-thinclient.mjs
  */
 import WebSocket from "ws";
 
-const BASE = process.env.ASYM_URL ?? "http://127.0.0.1:8666";
-const WS = BASE.replace(/^http/, "ws") + "/ws";
+const BASE = (process.env.ASYM_URL ?? "http://127.0.0.1:8666").replace(/\/+$/, "");
 
-function connect() {
-  const ws = new WebSocket(WS);
+async function join() {
+  const res = await fetch(`${BASE}/api/join`, { method: "POST" });
+  if (!res.ok) throw new Error(`join failed: ${res.status}`);
+  const body = await res.json();
+  if (!body.wsUrl) throw new Error("join missing wsUrl");
+  return body;
+}
+
+function connect(wsUrl) {
+  const ws = new WebSocket(wsUrl);
   /** @type {any[]} */
   const inbox = [];
   ws.on("message", (data) => inbox.push(JSON.parse(String(data))));
@@ -29,12 +36,15 @@ function connect() {
   return { ws, open, wait, inbox };
 }
 
-const a = connect();
+const joinInfo = await join();
+console.log("join", { wsUrl: joinInfo.wsUrl, wadUrl: joinInfo.wadUrl });
+
+const a = connect(joinInfo.wsUrl);
 await a.open;
 const welcomeA = await a.wait((m) => m.type === "welcome");
 await a.wait((m) => m.type === "snapshot");
 
-const b = connect();
+const b = connect(joinInfo.wsUrl);
 await b.open;
 const welcomeB = await b.wait((m) => m.type === "welcome");
 await b.wait((m) => m.type === "snapshot");

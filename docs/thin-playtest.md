@@ -1,7 +1,14 @@
 # Thin-client playtest checklist
 
-Prereq: `npm run build:native && npm run build:web && npm start`  
-(`build:web` runs `build:wasm` — needs [Emscripten](https://emscripten.org/) `emcc` on PATH.)
+Prereq (local):
+
+```bash
+npm run build:native && npm run build:wasm && npm run dev
+```
+
+Open the Vite URL (`http://127.0.0.1:5173`). The host runs on `:8666`; the client joins via `VITE_ASYM_API` (set by `scripts/dev.mjs`). Needs [Emscripten](https://emscripten.org/) `emcc` on PATH for the WASM viewer.
+
+Production: GitHub Pages client + remote sim (`VITE_ASYM_API` / `SIM_PUBLIC_URL`). See [clients.md](./clients.md).
 
 See also [render-contract.md](./render-contract.md) and [render-defects.md](./render-defects.md).
 
@@ -15,7 +22,7 @@ See also [render-contract.md](./render-contract.md) and [render-defects.md](./re
 - [ ] First client joins as **marine**
 - [ ] Reload mid-match reattaches the same role/body; demon **points** are unchanged (sticky session)
 - [ ] Snapshot actors match **real E1M1** species (imp, zombieman, … — not a toy 8-body roster)
-- [ ] Canvas shows textured walls from IWAD (`E1M1`)
+- [ ] Canvas shows textured walls from IWAD (`E1M1`) fetched from the **sim** (`join.wadUrl`), not Pages
 - [ ] Corners / height steps stay closed (vanilla BSP)
 - [ ] Second client joins as **demon** and controls a **different** body
 - [ ] Both clients can move their bodies independently in the same match

@@ -1,4 +1,4 @@
-name: thin-client
+name: ci
 
 on:
   push:
@@ -8,7 +8,61 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      contracts: ${{ steps.filter.outputs.contracts }}
+      host: ${{ steps.filter.outputs.host }}
+      web: ${{ steps.filter.outputs.web }}
+      wasm: ${{ steps.filter.outputs.wasm }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            contracts:
+              - 'contracts/**'
+              - 'package.json'
+              - 'package-lock.json'
+            host:
+              - 'server/**'
+              - 'contracts/**'
+              - 'native/Makefile'
+              - 'native/api/**'
+              - 'native/src/asym_embed*'
+              - 'native/src/asym_rules*'
+              - 'native/src/asym_sound*'
+              - 'native/src/control*'
+              - 'native/src/actors*'
+              - 'native/src/doomgeneric_asym*'
+              - 'native/src/events/**'
+              - 'native/engine/**'
+              - 'native/exported_symbols*'
+              - 'native/package.json'
+              - 'native/tests/**'
+              - 'Dockerfile'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'assets/**'
+            web:
+              - 'web/**'
+              - 'contracts/**'
+              - 'package.json'
+              - 'package-lock.json'
+            wasm:
+              - 'native/Makefile.wasm'
+              - 'native/src/asym_view*'
+              - 'native/src/doomgeneric_wasm*'
+              - 'native/engine/**'
+              - 'native/src/actors*'
+              - 'native/src/control*'
+              - 'native/src/asym_rules*'
+              - 'native/src/events/**'
+
+  contracts:
+    needs: changes
+    if: needs.changes.outputs.contracts == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,18 +70,68 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-      - run: npm install
-      - name: Install Emscripten
-        uses: mymindstorm/setup-emsdk@v14
+      - run: npm ci
+      - run: npm run build:contracts
+      - run: npm run test -w contracts
+
+  host:
+    needs: changes
+    if: needs.changes.outputs.host == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          version: 3.1.74
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run build:contracts
+      - name: Cache libasymdoom
+        id: cache-sim
+        uses: actions/cache@v4
+        with:
+          path: native/build
+          key: libasymdoom-${{ runner.os }}-${{ hashFiles('native/Makefile', 'native/api/**', 'native/src/asym_embed*', 'native/src/asym_rules*', 'native/src/asym_sound*', 'native/src/control*', 'native/src/actors*', 'native/src/doomgeneric_asym*', 'native/src/events/**', 'native/engine/**', 'native/exported_symbols*') }}
       - name: Build native libasymdoom
+        if: steps.cache-sim.outputs.cache-hit != 'true'
         run: npm run build:native
-      - name: Build WASM viewer
-        run: npm run build:wasm
       - run: npm run test -w contracts
       - run: npm run test -w native
       - run: npm run test -w server
-      - run: npm run test -w web
-      - run: npm run build -w web
       - run: npm run build -w server
+
+  web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true' || needs.changes.outputs.wasm == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run build:contracts
+      - name: Cache WASM viewer
+        id: cache-wasm
+        uses: actions/cache@v4
+        with:
+          path: |
+            web/public/asym_view_*.js
+            web/public/asym_view_*.wasm
+            native/build/wasm*
+          key: asym-view-${{ runner.os }}-${{ hashFiles('native/Makefile.wasm', 'native/src/asym_view*', 'native/src/doomgeneric_wasm*', 'native/src/actors*', 'native/src/control*', 'native/src/asym_rules*', 'native/src/events/**', 'native/engine/**') }}
+      - name: Install Emscripten
+        if: steps.cache-wasm.outputs.cache-hit != 'true'
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.74
+      - name: Build WASM viewer
+        if: steps.cache-wasm.outputs.cache-hit != 'true'
+        run: npm run build:wasm
+      - run: npm run test -w contracts
+      - run: npm run test -w web
+      - name: Build web (smoke)
+        env:
+          VITE_ASYM_API: http://127.0.0.1:8666
+        run: npm run build -w web

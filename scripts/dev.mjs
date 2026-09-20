@@ -61,6 +61,7 @@ process.on("SIGTERM", () => shutdown(0));
 const hostPort = await pickPort(Number(process.env.PORT ?? 8666));
 const webPort = await pickPort(5173);
 const api = `http://127.0.0.1:${hostPort}`;
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 console.log(`[dev] host  ${api}  (all interfaces)`);
 console.log(`[dev] client http://0.0.0.0:${webPort}  (open this for HMR; LAN clients use this host's IP)`);
@@ -68,8 +69,16 @@ if (hostPort !== 8666) {
   console.log(`[dev] note: :8666 busy — thin host using :${hostPort}`);
 }
 
+// Ensure contracts package is built for server/web imports.
+{
+  const r = spawnSync("npm", ["run", "build:contracts"], { cwd: repoRoot, stdio: "inherit" });
+  if (r.status !== 0) {
+    console.error("[dev] build:contracts failed");
+    process.exit(r.status ?? 1);
+  }
+}
+
 // Ensure WASM viewer artifacts exist for the default renderer.
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const wasmJs = path.join(repoRoot, "web/public/asym_view_4x.js");
 if (!existsSync(wasmJs)) {
   console.log("[dev] building WASM viewer (web/public/asym_view_4x.js missing)…");
@@ -79,7 +88,12 @@ if (!existsSync(wasmJs)) {
   }
 }
 
-run("server", ["run", "dev", "-w", "server"], { PORT: String(hostPort) });
+run("server", ["run", "dev", "-w", "server"], {
+  PORT: String(hostPort),
+  NODE_ENV: "development",
+});
 run("web", ["run", "dev", "-w", "web", "--", "--host", "0.0.0.0", "--port", String(webPort)], {
   ASYM_API: api,
+  // App uses VITE_ASYM_API (cross-origin to host); Vite proxy is optional fallback.
+  VITE_ASYM_API: api,
 });

@@ -34,6 +34,7 @@ loadSchemas(SCHEMAS);
 
 /** Map fixture basename prefix → schema $id */
 const ROUTING = [
+  [/^join-/, "https://asymdoom.dev/schemas/protocol/join.schema.json"],
   [/^welcome-/, "https://asymdoom.dev/schemas/protocol/welcome.schema.json"],
   [/^role-change-/, "https://asymdoom.dev/schemas/protocol/role-change.schema.json"],
   [/^input-/, "https://asymdoom.dev/schemas/protocol/input.schema.json"],

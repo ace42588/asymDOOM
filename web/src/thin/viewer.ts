@@ -6,12 +6,17 @@ import { HudGfx } from "./wad/hudGfx";
 import { WasmWorldRenderer } from "./wad/wasmView";
 import { ThinAudio } from "./audio";
 import { getClientSettings, hudDestRect, resolveRenderScale, WASM_W } from "./clientSettings";
-
-const IWAD_URL = "/doom1.wad";
+import { getWadUrl } from "./sim";
+import { setIwadHttpUrl } from "./wad/wasmView";
 
 /** Minimap overlay constants — 4x-reference (1280-wide world) values. */
 const MINIMAP_SIZE = 120;
 const MINIMAP_SCALE = 0.04;
+
+export interface ThinViewerOpts {
+  /** Absolute IWAD URL from join.wadUrl (or getWadUrl()). */
+  wadUrl?: string;
+}
 
 /** First-person view: WASM BSP world + TypeScript HUD overlays. */
 export class ThinViewer {
@@ -20,6 +25,7 @@ export class ThinViewer {
   private minimapCtx: CanvasRenderingContext2D | null;
   private w: number;
   private h: number;
+  private wadUrl: string;
   private wad: WadFile | null = null;
   private sprites: SpriteStore | null = null;
   private hud: HudGfx | null = null;
@@ -33,7 +39,7 @@ export class ThinViewer {
   private lastFrameMs = 0;
   readonly audio = new ThinAudio();
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, opts: ThinViewerOpts = {}) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
     const mini = document.getElementById("minimap") as HTMLCanvasElement | null;
@@ -44,6 +50,8 @@ export class ThinViewer {
     }
     this.w = canvas.width;
     this.h = canvas.height;
+    this.wadUrl = opts.wadUrl ?? getWadUrl();
+    setIwadHttpUrl(this.wadUrl);
     this.wasm = new WasmWorldRenderer();
     void this.ensureWad();
     void this.wasm.ensureReady(resolveRenderScale(getClientSettings().renderScale)).catch((err) => {
@@ -62,7 +70,7 @@ export class ThinViewer {
     if (this.wad || this.loading) return this.loading;
     this.loading = (async () => {
       try {
-        this.wad = await WadFile.fetch(IWAD_URL);
+        this.wad = await WadFile.fetch(this.wadUrl);
         this.sprites = new SpriteStore(this.wad);
         this.hud = new HudGfx(this.sprites);
         this.hud.onMuzzleFlash = (w) => this.audio.onMuzzleFlash(w);

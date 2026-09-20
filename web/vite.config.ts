@@ -1,10 +1,10 @@
 import { defineConfig } from "vite";
 
-const apiTarget = process.env.ASYM_API ?? "http://localhost:8666";
+const apiTarget = process.env.ASYM_API ?? process.env.VITE_ASYM_API ?? "http://localhost:8666";
 const wsTarget = apiTarget.replace(/^http/, "ws");
 
-// Production: the gateway serves web/dist plus assets from one origin.
-// Dev: `vite dev` proxies API/WS/IWAD to the thin host (ASYM_API, default :8666).
+// Production: client is GitHub Pages; sim is a separate origin (VITE_ASYM_API).
+// Dev: `vite dev` proxies API/WS/IWAD for convenience; the app still uses VITE_ASYM_API.
 export default defineConfig({
   base: "./",
   build: {

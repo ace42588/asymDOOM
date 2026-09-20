@@ -1,4 +1,4 @@
-/** Thin-mode gateway: JSON WS protocol + NativeEmbed (libasymdoom). */
+/** Thin-mode gateway: JSON WS protocol + NativeEmbed (libasymdoom). Sim-only — no SPA. */
 import http from "node:http";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import path from "node:path";
@@ -6,10 +6,10 @@ import { fileURLToPath } from "node:url";
 import { WebSocketServer } from "ws";
 import { ThinMatch } from "./match.js";
 import { NativeEmbed } from "./nativeEmbed.js";
+import { applyCorsHeaders, buildJoinResponse } from "./httpApi.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..", "..", "..");
-const WEB_DIST = path.join(ROOT, "web", "dist");
 const ASSETS = path.join(ROOT, "assets");
 const PORT = Number(process.env.PORT ?? 8666);
 const HOST = process.env.HOST ?? "0.0.0.0";
@@ -17,44 +17,34 @@ const SETTINGS_PATH = path.join(ROOT, "server", "settings.json");
 
 const settings = JSON.parse(readFileSync(SETTINGS_PATH, "utf8"));
 
-const MIME: Record<string, string> = {
-  ".html": "text/html; charset=utf-8",
-  ".js": "text/javascript; charset=utf-8",
-  ".css": "text/css; charset=utf-8",
-  ".json": "application/json",
-  ".wasm": "application/wasm",
+const ASSET_MIME: Record<string, string> = {
   ".wad": "application/octet-stream",
   ".cfg": "text/plain",
-  ".png": "image/png",
-  ".map": "application/json",
 };
-
-const STATIC_ROOTS = [WEB_DIST, ASSETS];
 
 function log(tag: string, msg: string) {
   console.log(`[${new Date().toISOString()}] [${tag}] ${msg}`);
 }
 
-function serveStatic(res: http.ServerResponse, urlPath: string) {
-  const rel = urlPath === "/" ? "index.html" : urlPath.replace(/^\/+/, "");
-  if (rel.includes("..")) {
-    res.writeHead(400).end("bad path");
+/** Serve IWAD / cfg from assets/ only (no SPA). */
+function serveAsset(res: http.ServerResponse, urlPath: string) {
+  const rel = urlPath.replace(/^\/+/, "");
+  if (!rel || rel.includes("..") || rel.includes("/")) {
+    res.writeHead(404).end("not found");
     return;
   }
-  for (const root of STATIC_ROOTS) {
-    const file = path.join(root, rel);
-    if (existsSync(file) && statSync(file).isFile()) {
-      const ext = path.extname(file);
-      const immutable = ext === ".wad" || /-[a-f0-9]{8}\./.test(rel);
-      res.writeHead(200, {
-        "Content-Type": MIME[ext] ?? "application/octet-stream",
-        "Cache-Control": immutable ? "public, max-age=31536000, immutable" : "no-cache",
-      });
-      res.end(readFileSync(file));
-      return;
-    }
+  const file = path.join(ASSETS, rel);
+  if (!existsSync(file) || !statSync(file).isFile()) {
+    res.writeHead(404).end("not found");
+    return;
   }
-  res.writeHead(404).end("not found");
+  const ext = path.extname(file);
+  const immutable = ext === ".wad";
+  res.writeHead(200, {
+    "Content-Type": ASSET_MIME[ext] ?? "application/octet-stream",
+    "Cache-Control": immutable ? "public, max-age=31536000, immutable" : "no-cache",
+  });
+  res.end(readFileSync(file));
 }
 
 const MARINE_DEATH_CODE: Record<string, number> = {
@@ -84,6 +74,18 @@ const match = new ThinMatch(thinSettings, makeEmbed(), makeEmbed);
 
 const httpServer = http.createServer((req, res) => {
   const urlPath = new URL(req.url ?? "/", "http://x").pathname;
+
+  if (req.method === "OPTIONS") {
+    if (applyCorsHeaders(req, res)) {
+      res.writeHead(204).end();
+    } else {
+      res.writeHead(403).end();
+    }
+    return;
+  }
+
+  applyCorsHeaders(req, res);
+
   if (urlPath === "/health" && req.method === "GET") {
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify({ ok: true }));
@@ -91,14 +93,7 @@ const httpServer = http.createServer((req, res) => {
   }
   if (urlPath === "/api/join" && req.method === "POST") {
     res.setHeader("Content-Type", "application/json");
-    res.end(
-      JSON.stringify({
-        mode: "thin",
-        role: "pending",
-        settings,
-        wsPath: "/ws",
-      }),
-    );
+    res.end(JSON.stringify(buildJoinResponse(req, settings)));
     return;
   }
   if (urlPath === "/api/reset" && req.method === "POST") {
@@ -137,7 +132,11 @@ const httpServer = http.createServer((req, res) => {
     }
     return;
   }
-  serveStatic(res, urlPath);
+  if (urlPath === "/doom1.wad" || urlPath === "/default.cfg") {
+    serveAsset(res, urlPath);
+    return;
+  }
+  res.writeHead(404).end("not found");
 });
 
 const wss = new WebSocketServer({ server: httpServer, path: "/ws" });

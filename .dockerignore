@@ -16,8 +16,13 @@ native/build
 native/exported_symbols.txt
 native/tests
 native/tools
+web/src
 web/dist
-web/public/asym_view_*
+web/public
+web/index.html
+web/vite.config.ts
+web/tsconfig.json
+web/scripts
 docs
 scripts
 .savegame

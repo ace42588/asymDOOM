@@ -1,10 +1,12 @@
-# Pulls the GHCR image built by .github/workflows/docker.yml on main
-# (Coolify host does not compile WASM).
+# Pulls the GHCR host image built by .github/workflows/docker.yml on main
+# (Coolify does not compile WASM / does not serve the SPA).
 # GHCR package may be private: Coolify's Docker user must `docker login ghcr.io`
 # with a GitHub PAT (read:packages). See Coolify → server SSH:
 #   printf '%s' "$GHCR_PAT" | docker login ghcr.io -u ace42588 --password-stdin
 # Override the tag with ASYMDOOM_IMAGE (sha-* or other) if needed.
-# External proxy should target this host on port 8666 (HTTP + WebSocket).
+#
+# External proxy should target this host on port 8666 for HTTP + WebSocket only
+# (/api, /ws, /health, /doom1.wad). The web client is served from GitHub Pages.
 services:
   asymdoom:
     image: ${ASYMDOOM_IMAGE:-ghcr.io/ace42588/asymdoom:latest}
@@ -14,5 +16,11 @@ services:
     environment:
       HOST: "0.0.0.0"
       PORT: "8666"
+      # Absolute sim origin for join.wsUrl / join.wadUrl (behind the proxy).
+      # SIM_PUBLIC_URL: "https://sim.example.com"
+      # Comma-separated browser Origins allowed for CORS (GitHub Pages URL).
+      # CORS_ORIGINS: "https://ace42588.github.io"
+      SIM_PUBLIC_URL: ${SIM_PUBLIC_URL:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
     restart: unless-stopped
     init: true

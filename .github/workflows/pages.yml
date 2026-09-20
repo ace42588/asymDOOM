@@ -1,0 +1,101 @@
+name: pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - "contracts/**"
+      - "native/Makefile.wasm"
+      - "native/src/asym_view*"
+      - "native/src/doomgeneric_wasm*"
+      - "native/src/actors*"
+      - "native/src/control*"
+      - "native/src/asym_rules*"
+      - "native/src/events/**"
+      - "native/engine/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build:contracts
+
+      - name: Require VITE_ASYM_API
+        env:
+          VITE_ASYM_API: ${{ vars.VITE_ASYM_API }}
+        run: |
+          if [ -z "$VITE_ASYM_API" ]; then
+            echo "::error::Set repository variable VITE_ASYM_API to the public sim origin (e.g. https://sim.example.com)"
+            exit 1
+          fi
+          echo "VITE_ASYM_API=$VITE_ASYM_API"
+
+      - name: Cache WASM viewer
+        id: cache-wasm
+        uses: actions/cache@v4
+        with:
+          path: |
+            web/public/asym_view_*.js
+            web/public/asym_view_*.wasm
+            native/build/wasm*
+          key: asym-view-${{ runner.os }}-${{ hashFiles('native/Makefile.wasm', 'native/src/asym_view*', 'native/src/doomgeneric_wasm*', 'native/src/actors*', 'native/src/control*', 'native/src/asym_rules*', 'native/src/events/**', 'native/engine/**') }}
+
+      - name: Install Emscripten
+        if: steps.cache-wasm.outputs.cache-hit != 'true'
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.74
+
+      - name: Build WASM viewer
+        if: steps.cache-wasm.outputs.cache-hit != 'true'
+        run: npm run build:wasm
+
+      - name: Build web client
+        env:
+          VITE_ASYM_API: ${{ vars.VITE_ASYM_API }}
+        run: npm run build -w web
+
+      - name: Ensure IWAD is not in Pages artifact
+        run: |
+          if find web/dist -iname '*.wad' | grep -q .; then
+            echo "::error::doom1.wad must not be published to GitHub Pages"
+            find web/dist -iname '*.wad'
+            exit 1
+          fi
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

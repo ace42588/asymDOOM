@@ -1,0 +1,7 @@
+{
+  "protocolVersion": 1,
+  "mode": "thin",
+  "wsUrl": "wss://sim.example.com/ws",
+  "wadUrl": "https://sim.example.com/doom1.wad",
+  "settings": { "skill": 3, "map": 1 }
+}

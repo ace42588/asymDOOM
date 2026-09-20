@@ -1,6 +1,7 @@
+import { PROTOCOL_VERSION } from "asymdoom-contracts";
 import { z } from "zod";
 
-export const PROTOCOL_VERSION = 1 as const;
+export { PROTOCOL_VERSION };
 
 export const IntentSchema = z.object({
   forward: z.number().min(-1).max(1),

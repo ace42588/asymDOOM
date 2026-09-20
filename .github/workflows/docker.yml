@@ -4,6 +4,16 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+    paths:
+      - "server/**"
+      - "contracts/**"
+      - "native/**"
+      - "assets/**"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/docker.yml"
   workflow_dispatch:
 
 concurrency:
@@ -17,7 +27,7 @@ permissions:
 jobs:
   image:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 

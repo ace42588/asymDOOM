@@ -21,6 +21,7 @@ import {
   WASM_W,
 } from "./clientSettings";
 import { loadSessionId, saveSessionId } from "./sessionId";
+import { getJoinUrl, resolveWsUrl, type JoinResponse } from "./sim";
 
 function el(id: string) {
   return document.getElementById(id)!;
@@ -77,11 +78,14 @@ export async function bootThin() {
   initTouchControls();
   initClientSettingsUi();
   const roleEl = el("hud-role");
+  let join: JoinResponse;
   try {
-    const res = await fetch("/api/join", { method: "POST" });
-    if (!res.ok) throw new Error("join failed");
-    await res.json();
-  } catch {
+    const res = await fetch(getJoinUrl(), { method: "POST" });
+    if (!res.ok) throw new Error(`join failed (${res.status})`);
+    join = (await res.json()) as JoinResponse;
+    if (!join.wsUrl || !join.wadUrl) throw new Error("join missing wsUrl/wadUrl");
+  } catch (err) {
+    console.error("[thin] join failed", err);
     roleEl.textContent = "Cannot reach gateway";
     return;
   }
@@ -116,7 +120,7 @@ export async function bootThin() {
   window.addEventListener("resize", fitCanvas);
   subscribeClientSettings(() => fitCanvas());
   initInput(canvas);
-  const viewer = new ThinViewer(canvas);
+  const viewer = new ThinViewer(canvas, { wadUrl: join.wadUrl });
   let state = createClientState();
   let seq = 0;
   let inputTimer: number | null = null;
@@ -129,12 +133,8 @@ export async function bootThin() {
   window.addEventListener("keydown", unlockAudio);
   canvas.addEventListener("pointerdown", unlockAudio);
 
-  const wsProto = location.protocol === "https:" ? "wss" : "ws";
   const resumeId = loadSessionId();
-  const wsUrl = resumeId
-    ? `${wsProto}://${location.host}/ws?sessionId=${encodeURIComponent(resumeId)}`
-    : `${wsProto}://${location.host}/ws`;
-  const ws = new WebSocket(wsUrl);
+  const ws = new WebSocket(resolveWsUrl(join, resumeId));
 
   const stopInput = () => {
     if (inputTimer != null) {

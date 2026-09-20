@@ -1,43 +1,57 @@
 # asymDOOM
 
-Asymmetrical DOOM: one marine vs player-possessed demons. Authoritative **native** sim (`libasymdoom`) + thin browser clients over a JSON WebSocket protocol.
+Asymmetrical DOOM: one marine vs player-possessed demons. Authoritative **native** sim (`libasymdoom`) + thin clients over a JSON WebSocket protocol.
 
 ## Architecture
 
-- **Host** (`server/`): Node gateway loads `native/build/libasymdoom` via koffi, runs the match tick, possession policy, and delta snapshots.
-- **Native** (`native/`): Vendored doomgeneric (headless) + actor/controller layer + asym possession rules. Builds `libasymdoom`.
-- **Client** (`web/`): Thin client — intent in, **WASM BSP view** (`asym_view`, native `R_RenderPlayerView`) + TS HUD overlays.
-- **Contracts** (`contracts/`): JSON Schema + fixtures for the wire protocol.
+- **Host** (`server/`): Node gateway loads `native/build/libasymdoom` via koffi, runs the match tick, possession policy, and delta snapshots. Serves `/api`, `/ws`, `/health`, and `/doom1.wad` only (no SPA).
+- **Native** (`native/`): Vendored doomgeneric (headless) + actor/controller layer + asym possession rules. Builds `libasymdoom` (host) and optionally `asym_view` WASM (web viewer).
+- **Web client** (`web/`): Thin browser client — intent in, WASM BSP view + TS HUD. Shipped on **GitHub Pages**; talks to the sim via `VITE_ASYM_API`.
+- **Contracts** (`contracts/`): JSON Schema, fixtures, `PROTOCOL_VERSION`, and URL helpers shared by all thin clients.
 
-Authoritative sim stays on the host. The browser WASM module is a **viewer only** (no client-side game ticks).
+Authoritative sim stays on the host. The browser WASM module is a **viewer only** (no client-side game ticks). See [docs/clients.md](docs/clients.md) for writing additional clients (Android, native).
 
 ## Requirements
 
 - Node 22+
 - clang (macOS/Linux) to build the native library
-- **Emscripten (`emcc`)** to build the client WASM viewer (`npm run build:wasm`)
-- `assets/doom1.wad` (shareware IWAD ships in-repo)
+- **Emscripten (`emcc`)** to build the client WASM viewer (`npm run build:wasm`) — web client only
+- `assets/doom1.wad` (shareware IWAD ships in-repo; served by the host, not Pages)
 
-## Quick start
+## Quick start (local)
 
 ```bash
 npm install
 npm run build:native   # libasymdoom
-npm run build:web      # WASM viewer + production client bundle
-npm start              # http://localhost:8666
-```
-
-**Dev (API watch + Vite HMR):**
-
-```bash
-npm run build:native
 npm run build:wasm     # once (or after native render changes)
-npm run dev
+npm run dev            # host :8666 + Vite HMR client
 ```
 
-Open **http://127.0.0.1:5173** (Vite). It proxies `/api` and `/ws` to the host on `:8666`, so client edits hot-reload while the native sim keeps running.
+Open **http://127.0.0.1:5173** (Vite). The client uses `VITE_ASYM_API` pointing at the host; CORS allows the Vite origin in development.
 
 Open two browser tabs: first join is the marine, later joins possess demons.
+
+**Host only** (no web UI — for Coolify / API smoke):
+
+```bash
+npm run build:native && npm run build:server
+npm start              # http://localhost:8666  (/health, /api, /ws, /doom1.wad)
+```
+
+## Production
+
+| Artifact | Where | Contents |
+| --- | --- | --- |
+| Host image | Coolify ← GHCR (`docker.yml`) | Node + `libasymdoom` + IWAD |
+| Web client | GitHub Pages (`pages.yml`) | Vite `web/dist` + `asym_view_*` (no WAD) |
+
+Configure:
+
+1. Repository **variable** `VITE_ASYM_API` = public sim origin (e.g. `https://sim.example.com`).
+2. Coolify / compose: `SIM_PUBLIC_URL` (same origin), `CORS_ORIGINS` = Pages Origin (e.g. `https://<user>.github.io`).
+3. GitHub → Settings → Pages → Source = **GitHub Actions**.
+
+External proxy should route only sim traffic (`/api`, `/ws`, `/health`, `/doom1.wad`) to Coolify `:8666`. The website is Pages.
 
 ## Controls
 
@@ -64,7 +78,7 @@ npm run build:wasm     # required for web WASM viewer tests
 npm test               # contracts → native → server → web
 ```
 
-CI runs the same sequence (see `.github/workflows/thin-client.yml`).
+CI uses path filters so web-only PRs skip clang and (when WASM is cached) Emscripten — see `.github/workflows/thin-client.yml`.
 
 ## Playtest checklist
 
@@ -78,7 +92,7 @@ See [docs/thin-playtest.md](docs/thin-playtest.md).
 
 ## Protocol
 
-See [contracts/PROTOCOL.md](contracts/PROTOCOL.md).
+See [contracts/PROTOCOL.md](contracts/PROTOCOL.md) and [docs/clients.md](docs/clients.md).
 
 ## License
 

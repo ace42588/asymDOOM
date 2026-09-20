@@ -3,11 +3,30 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./schemas/*": "./schemas/*",
+    "./PROTOCOL.md": "./PROTOCOL.md"
+  },
+  "files": [
+    "dist",
+    "schemas",
+    "PROTOCOL.md"
+  ],
   "scripts": {
-    "test": "node src/validate.mjs"
+    "build": "tsc",
+    "test": "npm run build && node src/validate.mjs && node --import tsx --test src/urls.test.ts"
   },
   "devDependencies": {
     "ajv": "^8.17.1",
-    "ajv-formats": "^3.0.1"
+    "ajv-formats": "^3.0.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
   }
 }

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://asymdoom.dev/schemas/protocol/join.schema.json",
+  "title": "JoinResponse",
+  "description": "HTTP POST /api/join response. wsUrl and wadUrl are absolute so thin clients (web, Android, native) share one sim base.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocolVersion", "mode", "wsUrl", "wadUrl", "settings"],
+  "properties": {
+    "protocolVersion": { "const": 1 },
+    "mode": { "const": "thin" },
+    "wsUrl": {
+      "type": "string",
+      "format": "uri",
+      "description": "Absolute WebSocket URL (ws:// or wss://). Append ?sessionId= to resume."
+    },
+    "wadUrl": {
+      "type": "string",
+      "format": "uri",
+      "description": "Absolute HTTP URL for the shareware IWAD (doom1.wad)."
+    },
+    "settings": { "type": "object" },
+    "role": {
+      "type": "string",
+      "description": "Deprecated hint; actual role arrives in welcome over the WebSocket."
+    }
+  }
+}

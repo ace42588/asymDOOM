@@ -13,13 +13,14 @@
     "node": ">=22"
   },
   "scripts": {
+    "build:contracts": "npm run build -w contracts",
     "build:native": "npm run build -w native",
     "build:wasm": "make -C native -f Makefile.wasm",
     "build:web": "npm run build:wasm && npm run build -w web",
-    "build:server": "npm run build -w server",
-    "build": "npm run build:native && npm run build:web && npm run build:server",
-    "test": "npm run test -w contracts && npm run test -w native && npm run test -w server && npm run test -w web",
-    "start": "npm run build:web && npm run start -w server",
+    "build:server": "npm run build:contracts && npm run build -w server",
+    "build": "npm run build:contracts && npm run build:native && npm run build:web && npm run build:server",
+    "test": "npm run build:contracts && npm run test -w contracts && npm run test -w native && npm run test -w server && npm run test -w web",
+    "start": "npm run start -w server",
     "start:prod": "node server/dist/index.js",
     "dev": "node scripts/dev.mjs"
   },
