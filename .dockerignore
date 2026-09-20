@@ -3,6 +3,7 @@
 .cursor
 .vscode
 .idea
+docker-compose.yaml
 docker-compose.yml
 Dockerfile
 *.md

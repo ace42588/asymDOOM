@@ -1,5 +1,9 @@
-# Pulls the GHCR image built by .github/workflows/docker.yml.
-# Use Coolify's Docker Compose pack so the host does not compile WASM.
+# Pulls the GHCR image built by .github/workflows/docker.yml on main
+# (Coolify host does not compile WASM).
+# GHCR package may be private: Coolify's Docker user must `docker login ghcr.io`
+# with a GitHub PAT (read:packages). See Coolify → server SSH:
+#   printf '%s' "$GHCR_PAT" | docker login ghcr.io -u ace42588 --password-stdin
+# Override the tag with ASYMDOOM_IMAGE (sha-* or other) if needed.
 # External proxy should target this host on port 8666 (HTTP + WebSocket).
 services:
   asymdoom:
