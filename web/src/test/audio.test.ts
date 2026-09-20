@@ -10,6 +10,8 @@ import { WadFile } from "../thin/wad/wadFile.ts";
 import { decodeDmx, sfxLumpName } from "../thin/audio/dmx.ts";
 import { inferSfx, dedupeCues } from "../thin/audio/infer.ts";
 import { adjustParams } from "../thin/audio/mixer.ts";
+import { musToMidi } from "../thin/audio/mus2mid.ts";
+import { musicLumpName, musicNameForMap } from "../thin/audio/musicMap.ts";
 import { createClientState, type Actor, type ClientState } from "../thin/state.ts";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -28,6 +30,37 @@ describe("dmx decode", () => {
     assert.equal(sfx.sampleRate, 11025);
     assert.ok(sfx.pcm.length > 1000);
     assert.ok(sfx.pcm.some((s) => Math.abs(s) > 0.01));
+  });
+});
+
+describe("music map lumps", () => {
+  it("maps E1M1 → D_E1M1 and Doom II MAP01 → D_RUNNIN", () => {
+    assert.equal(musicNameForMap("E1M1"), "e1m1");
+    assert.equal(musicLumpName("E1M1"), "D_E1M1");
+    assert.equal(musicLumpName("MAP01"), "D_RUNNIN");
+    assert.equal(musicLumpName("E4M1"), "D_E3M4");
+  });
+});
+
+describe("musToMidi", () => {
+  it("converts D_E1M1 MUS to a Type-0 MIDI file", () => {
+    const wad = WadFile.fromArrayBuffer(readFileSync(IWAD).buffer);
+    const mus = wad.lumpBytes("D_E1M1");
+    assert.equal(String.fromCharCode(mus[0]!, mus[1]!, mus[2]!), "MUS");
+    const midi = musToMidi(mus);
+    const head = String.fromCharCode(midi[0]!, midi[1]!, midi[2]!, midi[3]!);
+    assert.equal(head, "MThd");
+    assert.equal(midi[8], 0);
+    assert.equal(midi[9], 0); // type 0
+    assert.ok(midi.length > 200);
+    const track = String.fromCharCode(midi[14]!, midi[15]!, midi[16]!, midi[17]!);
+    assert.equal(track, "MTrk");
+    const trackLen = (midi[18]! << 24) | (midi[19]! << 16) | (midi[20]! << 8) | midi[21]!;
+    assert.equal(trackLen, midi.length - 22);
+  });
+
+  it("rejects non-MUS bytes", () => {
+    assert.throws(() => musToMidi(new Uint8Array([1, 2, 3, 4])));
   });
 });
 
@@ -65,6 +98,7 @@ function withActors(state: ClientState, actors: Actor[]): ClientState {
       doors: new Map(state.entities.doors),
       movers: new Map(state.entities.movers),
       projectiles: new Map(state.entities.projectiles),
+      switches: new Map(state.entities.switches),
     },
   };
   for (const a of actors) next.entities.actors.set(a.id, a);

@@ -1,26 +1,48 @@
 import type { ClientState, SimEvent } from "../state";
 import type { WadFile } from "../wad/wadFile";
+import {
+  getClientSettings,
+  subscribeClientSettings,
+} from "../clientSettings";
 import { SfxBank } from "./bank";
 import { dedupeCues, inferSfx, weaponFireSfx, type InferResult } from "./infer";
 import { SfxMixer, type ListenerPose, type SfxCue } from "./mixer";
+import { MusPlayer } from "./music";
 
-/** Thin-client audio: IWAD bank + mixer + snapshot inference. */
+/** Thin-client audio: IWAD bank + mixer + snapshot inference + optional music. */
 export class ThinAudio {
   private bank: SfxBank | null = null;
   private mixer: SfxMixer | null = null;
+  private music = new MusPlayer();
+  private musicEnabled = getClientSettings().musicEnabled;
+  private mapName: string | null = null;
   private prevMoverLoops = new Set<number>();
+
+  constructor() {
+    subscribeClientSettings((s) => {
+      this.musicEnabled = s.musicEnabled;
+      this.syncMusic();
+    });
+  }
 
   setWad(wad: WadFile) {
     this.bank = new SfxBank(wad);
     this.mixer = new SfxMixer(this.bank);
+    this.music.setWad(wad);
+    this.syncMusic();
   }
 
   async unlock() {
     await this.mixer?.unlock();
+    if (this.musicEnabled) {
+      await this.music.unlock();
+      this.syncMusic();
+    }
   }
 
   stopAll() {
     this.mixer?.stopAll();
+    this.music.stop();
     this.prevMoverLoops.clear();
   }
 
@@ -39,6 +61,8 @@ export class ThinAudio {
    * Process a snapshot transition: infer cues, merge wire sound events, update loops.
    */
   ingest(prev: ClientState, next: ClientState, events: SimEvent[] | undefined) {
+    if (next.mapName) this.mapName = next.mapName;
+    this.syncMusic();
     if (!this.mixer) return;
     const result = inferSfx(prev, next, events ?? []);
     const wire = wireSoundCues(events ?? []);
@@ -47,6 +71,14 @@ export class ThinAudio {
     for (const c of result.cues) this.mixer.play(c, listener);
     for (const c of extra) this.mixer.play(c, listener);
     this.syncMoverLoops(result, listener);
+  }
+
+  private syncMusic() {
+    if (!this.musicEnabled) {
+      this.music.stop();
+      return;
+    }
+    this.music.playMap(this.mapName);
   }
 
   private syncMoverLoops(result: InferResult, listener: ListenerPose | null) {
