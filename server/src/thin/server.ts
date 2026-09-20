@@ -84,6 +84,11 @@ const match = new ThinMatch(thinSettings, makeEmbed(), makeEmbed);
 
 const httpServer = http.createServer((req, res) => {
   const urlPath = new URL(req.url ?? "/", "http://x").pathname;
+  if (urlPath === "/health" && req.method === "GET") {
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
   if (urlPath === "/api/join" && req.method === "POST") {
     res.setHeader("Content-Type", "application/json");
     res.end(

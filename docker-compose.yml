@@ -1,0 +1,14 @@
+# Pulls the GHCR image built by .github/workflows/docker.yml.
+# Use Coolify's Docker Compose pack so the host does not compile WASM.
+# External proxy should target this host on port 8666 (HTTP + WebSocket).
+services:
+  asymdoom:
+    image: ${ASYMDOOM_IMAGE:-ghcr.io/ace42588/asymdoom:latest}
+    pull_policy: always
+    ports:
+      - "8666:8666"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8666"
+    restart: unless-stopped
+    init: true

@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import koffi from "koffi";
+import koffi, { type LibraryHandle } from "koffi";
 import type {
   AsymInput,
   Embed,
@@ -60,7 +60,7 @@ const ROLE_MAP: Record<number, Role | null> = {
   3: "spectator",
 };
 
-let lib: koffi.IKoffiLib | null = null;
+let lib: LibraryHandle | null = null;
 let structsBound = false;
 
 function loadLib() {
@@ -253,7 +253,7 @@ function int4(value: unknown, fallback: readonly number[]): number[] {
 
 export class NativeEmbed implements Embed {
   private handle: unknown;
-  private api: Record<string, koffi.KoffiFunction>;
+  private api: Record<string, ReturnType<LibraryHandle["func"]>>;
   private cfg: EmbedConfig;
   private registered = new Set<string>();
 
