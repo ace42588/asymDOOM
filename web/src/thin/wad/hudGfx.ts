@@ -693,6 +693,38 @@ export function ammoIndexForWeapon(weapon: number): number {
   }
 }
 
+/**
+ * Hit-test the STBAR ARMS grid (numbers 2–7) in canvas backing-store pixels.
+ * Returns the keyboard weapon digit (2–7), or null if outside the grid.
+ */
+export function hitTestArmsWeapon(
+  canvasX: number,
+  canvasY: number,
+  worldW: number,
+  worldH: number,
+  placement: HudPlacement = "overlay",
+  hudScale = 1,
+): number | null {
+  if (!Number.isFinite(canvasX) || !Number.isFinite(canvasY)) return null;
+  if (worldW <= 0 || worldH <= 0) return null;
+  const dest = hudDestRect(worldW, worldH, placement, hudScale);
+  const scale = dest.w / BASE_W;
+  if (!(scale > 0)) return null;
+  const ox = dest.x;
+  const viewH = dest.y + dest.h;
+  // Inverse of drawPatch with zero offsets: canvas ← vanilla screen (sx, sy).
+  const sx = (canvasX - ox) / scale;
+  const sy = BASE_H - (viewH - canvasY) / scale;
+  for (let i = 0; i < 6; i++) {
+    const ax = ST.armsX + (i % 3) * ST.armsXSpace;
+    const ay = ST.armsY + Math.floor(i / 3) * ST.armsYSpace;
+    if (sx >= ax && sx < ax + ST.armsXSpace && sy >= ay && sy < ay + ST.armsYSpace) {
+      return i + 2; // ARMS digits 2–7
+    }
+  }
+  return null;
+}
+
 function clampWeapon(w: number): number {
   if (!Number.isFinite(w) || w < 0) return 1;
   if (w >= WEAPON_SPRITE.length) return WEAPON_SPRITE.length - 1;

@@ -265,14 +265,15 @@ body.touch-on #hud-hint {
 }
 
 #touch-look-zone {
+  /* Above the FIRE/USE cluster so the stick is not under action buttons. */
   position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 48%;
-  height: 45%;
+  right: calc(14px + env(safe-area-inset-right, 0px));
+  bottom: calc(160px + env(safe-area-inset-bottom, 0px));
+  width: 148px;
+  height: 148px;
   pointer-events: auto;
   touch-action: none;
-  z-index: 2;
+  z-index: 4;
 }
 
 #touch-stick,
@@ -291,9 +292,28 @@ body.touch-on #hud-hint {
   bottom: calc(22px + env(safe-area-inset-bottom, 0px));
 }
 
+#touch-stick.run {
+  border-color: rgba(124, 255, 107, 0.75);
+  box-shadow: 0 0 14px rgba(124, 255, 107, 0.25);
+}
+
+#touch-stick-walk-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 72px;
+  height: 72px;
+  margin: -36px 0 0 -36px;
+  border-radius: 50%;
+  border: 1px dashed rgba(232, 230, 227, 0.35);
+  pointer-events: none;
+}
+
 #touch-look-stick {
-  right: calc(120px + env(safe-area-inset-right, 0px));
-  bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+  left: 10px;
+  top: 10px;
+  right: auto;
+  bottom: auto;
 }
 
 #touch-stick-knob,

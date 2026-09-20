@@ -1,5 +1,6 @@
 /** Keyboard/mouse/touch → intent for thin protocol (contracts/intent.schema.json). */
 
+import { armsWeaponAtClientPoint } from "./armsHit";
 import { getClientSettings } from "./clientSettings";
 
 export interface Intent {
@@ -74,8 +75,9 @@ export function gyroRateToTurnDelta(
   if (!Number.isFinite(degPerSec) || !Number.isFinite(dtSec) || dtSec <= 0) return 0;
   if (degPerSec === 0) return 0;
   const sens = Number.isFinite(gyroSens) ? gyroSens : 1;
-  // 180 physical deg → TURN_DELTA_180 wire; sign matches swipe (negate).
-  return -((degPerSec * dtSec) / 180) * TURN_DELTA_180 * sens;
+  // 180 physical deg → TURN_DELTA_180 wire. Positive yawRateFromRotation
+  // (device yaw toward screen-right) must look the same way as a right swipe.
+  return ((degPerSec * dtSec) / 180) * TURN_DELTA_180 * sens;
 }
 
 /** arti: 1–8 weapon/mod, 5 hop, 9 next weapon, 10 prev weapon. */
@@ -150,6 +152,15 @@ export function initInput(canvas: HTMLCanvasElement) {
     if (settings?.open) return;
     canvas.requestPointerLock?.();
   });
+  canvas.addEventListener("pointerdown", (e) => {
+    // ARMS grid on the status bar selects weapons 2–7 (marine only).
+    const digit = armsWeaponAtClientPoint(e.clientX, e.clientY);
+    if (digit != null) {
+      artiPulse = digit;
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
   document.addEventListener("mousemove", (e) => {
     if (document.pointerLockElement === canvas) {
       // Negate: world axes flipped; +movementX must look left on wire.
@@ -157,6 +168,10 @@ export function initInput(canvas: HTMLCanvasElement) {
     }
   });
   canvas.addEventListener("mousedown", (e) => {
+    if (armsWeaponAtClientPoint(e.clientX, e.clientY) != null) {
+      e.preventDefault();
+      return;
+    }
     if (e.button === 0) keys.add("mouse0");
   });
   canvas.addEventListener("mouseup", (e) => {

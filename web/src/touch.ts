@@ -1,5 +1,6 @@
 // On-screen controls for thin client. Feeds web/src/thin/input.ts.
 
+import { setArmsPickEnabled, armsWeaponAtClientPoint } from "./thin/armsHit";
 import {
   getClientSettings,
   subscribeClientSettings,
@@ -14,6 +15,9 @@ import {
 } from "./thin/input";
 
 const FLYERS = new Set(["lostsoul", "cacodemon"]);
+
+/** Outer stick stage (≥ this fraction of radius) holds run while the stick is active. */
+export const MOVE_RUN_FRAC = 0.65;
 
 const KEY = {
   fire: "fire",
@@ -67,16 +71,34 @@ function setFire(down: boolean) {
   setKey(KEY.fire, down);
 }
 
+function applyRunToggle() {
+  touchSetRun(runOn);
+  const runBtn = document.getElementById("touch-run");
+  runBtn?.classList.toggle("on", runOn);
+}
+
 function releaseAll() {
   for (const k of [...held]) setKey(k, false);
   setFire(false);
   touchSetStick(0, 0);
   touchSetLookStick(0);
+  applyRunToggle();
   movePtr = null;
   lookPtr = null;
   lookStickPtr = null;
+  const moveStick = document.getElementById("touch-stick");
+  moveStick?.classList.remove("run");
   resetStick("touch-stick", "touch-stick-knob");
   resetStick("touch-look-stick", "touch-look-stick-knob");
+}
+
+function tryPickArmsWeapon(clientX: number, clientY: number): boolean {
+  const digit = armsWeaponAtClientPoint(clientX, clientY);
+  if (digit == null) return false;
+  const k = String(digit);
+  touchSetKey(k, true);
+  touchSetKey(k, false);
+  return true;
 }
 
 function bindHold(btn: HTMLElement, name: string) {
@@ -204,6 +226,10 @@ function onMoveStick(x: number, y: number) {
   const ay = mag < 1 ? 0 : dy / Math.max(mag, stickRadius);
   // stick: up = forward; right = strafe right (sign matches keyboard after world flip)
   touchSetStick(-ay, ax);
+  // Two-stage: outer ring holds run; inner walks. Toggle restored on release.
+  const runStick = mag >= stickRadius * MOVE_RUN_FRAC;
+  touchSetRun(runStick);
+  el("touch-stick").classList.toggle("run", runStick);
 }
 
 function onLookStickMove(x: number, y: number) {
@@ -251,6 +277,7 @@ function applyTouchChrome() {
 
 export function setTouchRole(role: string) {
   lastRole = role;
+  setArmsPickEnabled(role === "marine");
   applyTouchChrome();
 }
 
@@ -313,6 +340,11 @@ function bindControls() {
   move.addEventListener("pointerdown", (e) => {
     if (movePtr !== null) return;
     if (e.button !== 0 && e.pointerType === "mouse") return;
+    if (tryPickArmsWeapon(e.clientX, e.clientY)) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     e.preventDefault();
     movePtr = e.pointerId;
     try {
@@ -334,6 +366,8 @@ function bindControls() {
     if (e.pointerId !== movePtr) return;
     movePtr = null;
     touchSetStick(0, 0);
+    applyRunToggle();
+    el("touch-stick").classList.remove("run");
     resetStick("touch-stick", "touch-stick-knob");
   };
   move.addEventListener("pointerup", endMove);
@@ -342,6 +376,11 @@ function bindControls() {
   look.addEventListener("pointerdown", (e) => {
     if (lookPtr !== null) return;
     if (e.button !== 0 && e.pointerType === "mouse") return;
+    if (tryPickArmsWeapon(e.clientX, e.clientY)) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     e.preventDefault();
     lookPtr = e.pointerId;
     try {
@@ -402,8 +441,8 @@ function bindControls() {
     e.preventDefault();
     e.stopPropagation();
     runOn = !runOn;
-    touchSetRun(runOn);
-    runBtn.classList.toggle("on", runOn);
+    if (movePtr === null) applyRunToggle();
+    else runBtn.classList.toggle("on", runOn);
   });
 
   document.addEventListener("visibilitychange", () => {

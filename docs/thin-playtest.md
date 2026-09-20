@@ -21,7 +21,9 @@ See also [render-contract.md](./render-contract.md) and [render-defects.md](./re
 
 - [ ] One comfortable right-thumb swipe ≈ **180°** turn (Settings → Touch look at 1.00×)
 - [ ] Hold **FIRE** (or **USE**) and drag horizontally to turn while shooting / using
-- [ ] Settings → **Look stick** on: hold full left/right on the right stick for continuous turn; swipe still works off the stick
+- [ ] Settings → **Look stick** on: stick sits **above** FIRE/USE (not under buttons); hold for continuous turn
+- [ ] Move stick **two-stage**: inner = walk, outer ring = run (green border); RUN toggle restores on release
+- [ ] Tap STBAR **ARMS** digits 2–7 to select that weapon (marine)
 - [ ] Settings → **Gyro look** on (real device): small physical yaw nudges aim; additive with swipe; disable → no drift at rest
 - [ ] Desktop pointer-lock mouse look unchanged (Settings → Mouse sens)
 

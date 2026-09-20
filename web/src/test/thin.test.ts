@@ -25,6 +25,8 @@ import {
   setClientSettings,
 } from "../thin/clientSettings.js";
 import { yawRateFromRotation } from "../thin/gyro.js";
+import { hitTestArmsWeapon } from "../thin/wad/hudGfx.js";
+import { MOVE_RUN_FRAC } from "../touch.js";
 
 function installMemoryStorage() {
   const map = new Map<string, string>();
@@ -39,6 +41,39 @@ function installMemoryStorage() {
     clear: () => map.clear(),
   };
 }
+
+describe("STBAR ARMS hit-test", () => {
+  it("maps cell centers to digits 2–7 at 320×200 overlay", () => {
+    const worldW = 320;
+    const worldH = 200;
+    const destY = worldH - 32;
+    const viewH = destY + 32;
+    const cases = [
+      { i: 0, digit: 2 },
+      { i: 1, digit: 3 },
+      { i: 2, digit: 4 },
+      { i: 3, digit: 5 },
+      { i: 4, digit: 6 },
+      { i: 5, digit: 7 },
+    ];
+    for (const { i, digit } of cases) {
+      const ax = 111 + (i % 3) * 12 + 6;
+      const ay = 172 + Math.floor(i / 3) * 10 + 5;
+      const cx = ax;
+      const cy = viewH - (200 - ay);
+      assert.equal(hitTestArmsWeapon(cx, cy, worldW, worldH, "overlay", 1), digit);
+    }
+    assert.equal(hitTestArmsWeapon(0, 0, worldW, worldH, "overlay", 1), null);
+  });
+});
+
+describe("move stick two-stage run", () => {
+  it("MOVE_RUN_FRAC is an outer-ring threshold", () => {
+    assert.ok(MOVE_RUN_FRAC > 0.5 && MOVE_RUN_FRAC < 1);
+    const r = 56;
+    assert.ok(r * MOVE_RUN_FRAC < r);
+  });
+});
 
 describe("touch / gyro look math", () => {
   it("touchDxToTurnDelta: ref swipe at sens 1 ≈ 180°", () => {
@@ -58,7 +93,7 @@ describe("touch / gyro look math", () => {
 
   it("gyroRateToTurnDelta: 180 deg over 1s at sens 1 = 180° wire", () => {
     const d = gyroRateToTurnDelta(180, 1, 1);
-    assert.ok(Math.abs(d + TURN_DELTA_180) < 1e-9);
+    assert.ok(Math.abs(d - TURN_DELTA_180) < 1e-9);
     assert.equal(gyroRateToTurnDelta(0, 1, 1), 0);
     assert.equal(gyroRateToTurnDelta(90, 0, 1), 0);
   });
