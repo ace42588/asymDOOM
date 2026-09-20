@@ -218,6 +218,21 @@ function loadLib() {
     });
     structsBound = true;
   }
+
+  const sizeofActor = lib.func("size_t asym_sizeof_actor()");
+  const sizeofSnapshot = lib.func("size_t asym_sizeof_snapshot()");
+  const sizeofEvent = lib.func("size_t asym_sizeof_event()");
+  const cActor = Number(sizeofActor());
+  const cSnap = Number(sizeofSnapshot());
+  const cEvent = Number(sizeofEvent());
+  const jsActor = koffi.sizeof("asym_actor");
+  const jsSnap = koffi.sizeof("asym_snapshot");
+  const jsEvent = koffi.sizeof("asym_event");
+  if (cActor !== jsActor || cSnap !== jsSnap || cEvent !== jsEvent) {
+    throw new Error(
+      `libasymdoom ABI mismatch actor C=${cActor} JS=${jsActor} snapshot C=${cSnap} JS=${jsSnap} event C=${cEvent} JS=${jsEvent}`,
+    );
+  }
   return lib;
 }
 

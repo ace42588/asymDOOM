@@ -58,6 +58,7 @@ struct asym_embed {
     char arg_skill[16];
     char arg_nomusic[16];
     char arg_nosound[16];
+    char arg_nogui[16];
     int argc;
 };
 
@@ -182,12 +183,15 @@ asym_embed *asym_create(const asym_config *cfg)
     strncpy(e->arg_path, e->iwad_buf, sizeof(e->arg_path) - 1);
     strncpy(e->arg_nomusic, "-nomusic", sizeof(e->arg_nomusic) - 1);
     strncpy(e->arg_nosound, "-nosfx", sizeof(e->arg_nosound) - 1);
+    strncpy(e->arg_nogui, "-nogui", sizeof(e->arg_nogui) - 1);
     e->argv_storage[0] = e->arg0;
     e->argv_storage[1] = e->arg_iwad;
     e->argv_storage[2] = e->arg_path;
     e->argv_storage[3] = e->arg_nomusic;
     e->argv_storage[4] = e->arg_nosound;
-    e->argc = 5;
+    e->argv_storage[5] = e->arg_nogui;
+    e->argv_storage[6] = NULL;
+    e->argc = 6;
 
     g_host_ticks_ms = 0;
     asym_host_set_ticks_ms(0);
