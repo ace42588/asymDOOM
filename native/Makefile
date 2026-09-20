@@ -10,17 +10,20 @@ endif
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
+	CC ?= gcc
 	SHARED_EXT = .so
 	SHARED_FLAGS = -shared -fPIC
-	EXPORT_FLAGS = -Wl,--export-dynamic
+	# Hide engine symbols from Node/koffi. --export-dynamic lets Doom
+	# interpose libc/Node names and SIGSEGV during D_DoomMain on Linux.
+	EXPORT_FLAGS = -Wl,-Bsymbolic,--version-script,$(ROOT)/exported_symbols.map,-z,noexecstack
 endif
 ifeq ($(UNAME_S),Darwin)
+	CC ?= clang
 	SHARED_EXT = .dylib
 	SHARED_FLAGS = -dynamiclib -fPIC
 	EXPORT_FLAGS = -Wl,-exported_symbols_list,exported_symbols.txt
 endif
 
-CC ?= clang
 ROOT := $(abspath .)
 ENG := $(ROOT)/engine
 SRC := $(ROOT)/src
@@ -86,7 +89,7 @@ exported_symbols.txt:
 	@echo "_doomgeneric_Create" >> $@
 	@echo "_doomgeneric_Tick" >> $@
 
-$(OUTPUT): $(OBJS) exported_symbols.txt | $(OBJDIR)
+$(OUTPUT): $(OBJS) exported_symbols.txt exported_symbols.map | $(OBJDIR)
 	@echo [Linking $@]
 	$(VB)$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $(OUTPUT) $(LIBS) $(EXPORT_FLAGS)
 	@echo [Built: $(OUTPUT)]

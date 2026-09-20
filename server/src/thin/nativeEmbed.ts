@@ -66,7 +66,7 @@ let structsBound = false;
 function loadLib() {
   if (lib) return lib;
   const libPath = resolveLib();
-  lib = koffi.load(libPath);
+  lib = koffi.load(libPath, { lazy: false, global: false });
 
   if (!structsBound) {
     koffi.opaque("asym_embed");
