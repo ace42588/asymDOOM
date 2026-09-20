@@ -25,13 +25,58 @@ export interface InputSample {
 /** Pointer-lock / touch look → turnDelta before host angleturn scaling. */
 export const LOOK_SENS = 0.02;
 
-/** Effective look scale (LOOK_SENS × user multiplier). */
+/**
+ * Fraction of viewport width that maps to a 180° turn at touchLookSens = 1.
+ * Comfortable right-thumb swipe, not full-screen edge-to-edge.
+ */
+export const TOUCH_LOOK_REF_FRAC = 0.35;
+
+/**
+ * Wire turnDelta for a 180° turn (host ×800 → 32768 angleturn = half circle).
+ * Must stay in sync with server/src/thin/intentScale.ts toTiccmdTurn.
+ */
+export const TURN_DELTA_180 = 32768 / 800;
+
+/** Effective mouse look scale (LOOK_SENS × user multiplier). */
 export function effectiveLookSens(): number {
   return LOOK_SENS * getClientSettings().lookSens;
 }
 
-/** Held arrow-key turn per sample (~vanilla angleturn after host scale). */
+/**
+ * Map touch swipe CSS-pixel dx → wire turnDelta.
+ * At touchLookSens = 1, a swipe of TOUCH_LOOK_REF_FRAC × viewportWidth = 180°.
+ */
+export function touchDxToTurnDelta(
+  dx: number,
+  viewportWidth: number,
+  touchLookSens: number,
+): number {
+  const w = Math.max(1, viewportWidth);
+  const sens = Number.isFinite(touchLookSens) ? touchLookSens : 1;
+  return -dx * (TURN_DELTA_180 / (TOUCH_LOOK_REF_FRAC * w)) * sens;
+}
+
+/** Held arrow-key / look-stick turn per sample (~vanilla angleturn after host scale). */
 export const KEY_TURN_RATE = 1.6;
+
+/** Full look-stick deflection turn rate per sample (matches KEY_TURN_RATE at sens 1). */
+export const LOOK_STICK_RATE = KEY_TURN_RATE;
+
+/**
+ * Map gyro rotation rate (deg/s) × dt into wire turnDelta.
+ * At gyroSens = 1, 90 deg/s for 1s ≈ 90° in-game (half of TURN_DELTA_180).
+ */
+export function gyroRateToTurnDelta(
+  degPerSec: number,
+  dtSec: number,
+  gyroSens: number,
+): number {
+  if (!Number.isFinite(degPerSec) || !Number.isFinite(dtSec) || dtSec <= 0) return 0;
+  if (degPerSec === 0) return 0;
+  const sens = Number.isFinite(gyroSens) ? gyroSens : 1;
+  // 180 physical deg → TURN_DELTA_180 wire; sign matches swipe (negate).
+  return -((degPerSec * dtSec) / 180) * TURN_DELTA_180 * sens;
+}
 
 /** arti: 1–8 weapon/mod, 5 hop, 9 next weapon, 10 prev weapon. */
 export const ARTI_WEAPON_NEXT = 9;
@@ -47,6 +92,8 @@ let touchForward = 0;
 let touchStrafe = 0;
 /** Only true after touch UI enables run — must default false so keyboard stays walk-unless-Shift. */
 let touchRun = false;
+/** Look-stick horizontal axis [-1, 1]; held velocity turn. */
+let lookStickX = 0;
 
 function digitFromKey(key: string, code: string): number | null {
   if (/^[1-8]$/.test(key)) return Number(key);
@@ -148,7 +195,19 @@ export function touchSetKey(name: string, down: boolean) {
 }
 
 export function touchAddLook(dx: number) {
-  turnAccum -= dx * effectiveLookSens();
+  const s = getClientSettings();
+  const vw =
+    typeof window !== "undefined" && window.innerWidth > 0 ? window.innerWidth : 390;
+  turnAccum += touchDxToTurnDelta(dx, vw, s.touchLookSens);
+}
+
+export function touchSetLookStick(x: number) {
+  lookStickX = clampAxis(x);
+}
+
+export function touchAddTurnDelta(delta: number) {
+  if (!Number.isFinite(delta) || delta === 0) return;
+  turnAccum += delta;
 }
 
 export function touchSetRun(on: boolean) {
@@ -199,6 +258,7 @@ export function sampleIntent(): InputSample {
   const kbStrafe = (keys.has("d") ? 1 : 0) - (keys.has("a") ? 1 : 0);
   const keyTurn =
     (keys.has("arrowleft") ? KEY_TURN_RATE : 0) - (keys.has("arrowright") ? KEY_TURN_RATE : 0);
+  const stickTurn = lookStickX * LOOK_STICK_RATE * getClientSettings().lookStickSens;
   const run = keys.has("shift") || touchRun;
   const forward = touchForward !== 0 ? touchForward : kbFwd;
   const strafe = touchStrafe !== 0 ? touchStrafe : kbStrafe;
@@ -206,7 +266,7 @@ export function sampleIntent(): InputSample {
   const intent = composeIntent({
     forward,
     strafe,
-    turnDelta: turnAccum + keyTurn,
+    turnDelta: turnAccum + keyTurn + stickTurn,
     run,
     fire:
       keys.has(" ") ||

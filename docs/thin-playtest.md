@@ -17,6 +17,14 @@ See also [render-contract.md](./render-contract.md) and [render-defects.md](./re
 - **WASM BSP viewer** (`web/public/asym_view_{1,2,4}x.{js,wasm}`) — native `R_RenderPlayerView` at a true 320×200 / 640×400 / 1280×800, protocol-driven pose/movers/actors, TS HUD overlays. Render-scale changes hot-swap the binary.
 - Hold **H** for control hints.
 
+## Mobile look / touch (`?touch=1` or coarse pointer)
+
+- [ ] One comfortable right-thumb swipe ≈ **180°** turn (Settings → Touch look at 1.00×)
+- [ ] Hold **FIRE** (or **USE**) and drag horizontally to turn while shooting / using
+- [ ] Settings → **Look stick** on: hold full left/right on the right stick for continuous turn; swipe still works off the stick
+- [ ] Settings → **Gyro look** on (real device): small physical yaw nudges aim; additive with swipe; disable → no drift at rest
+- [ ] Desktop pointer-lock mouse look unchanged (Settings → Mouse sens)
+
 ## Roles / protocol
 
 - [ ] First client joins as **marine**

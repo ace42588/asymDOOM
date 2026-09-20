@@ -14,8 +14,18 @@ export type CanvasScaleMode = 1 | 2 | "fit";
 export type HudPlacement = "overlay" | "below";
 
 export interface ClientSettings {
-  /** Multiplier on LOOK_SENS (0.25–4, default 1). */
+  /** Multiplier on LOOK_SENS for pointer-lock mouse (0.25–4, default 1). */
   lookSens: number;
+  /** Multiplier on touch swipe look (0.25–4, default 1). */
+  touchLookSens: number;
+  /** Show right analog look stick (velocity turn). Default off. */
+  lookStick: boolean;
+  /** Multiplier on look-stick turn rate (0.25–4, default 1). */
+  lookStickSens: number;
+  /** Opt-in device gyro yaw. Default off. */
+  gyroEnabled: boolean;
+  /** Multiplier on gyro yaw (0.25–4, default 1). */
+  gyroSens: number;
   /** Native pixel scale of 320×200 (WASM fb_scaling). */
   renderScale: RenderScaleMode;
   /** How large to draw the canvas: 1× / 2× / fit-to-window. */
@@ -24,6 +34,8 @@ export interface ClientSettings {
   /** Uniform STBAR scale 0.5–1.5 (default 1). */
   hudScale: number;
   showCrosshair: boolean;
+  /** Loop IWAD map music (client-side MUS → MIDI). Default on, like vanilla. */
+  musicEnabled: boolean;
 }
 
 export const STORAGE_KEY = "asymdoom.clientSettings";
@@ -38,11 +50,17 @@ export const WASM_SCALE = 4;
 
 export const DEFAULT_SETTINGS: ClientSettings = {
   lookSens: 1,
+  touchLookSens: 1,
+  lookStick: false,
+  lookStickSens: 1,
+  gyroEnabled: false,
+  gyroSens: 1,
   renderScale: "auto",
   canvasScale: "fit",
   hudPlacement: "overlay",
   hudScale: 1,
   showCrosshair: true,
+  musicEnabled: true,
 };
 
 type Listener = (s: ClientSettings) => void;
@@ -51,9 +69,9 @@ let current: ClientSettings = { ...DEFAULT_SETTINGS };
 const listeners = new Set<Listener>();
 let loaded = false;
 
-function clampLookSens(v: unknown): number {
+function clampLookSens(v: unknown, fallback = DEFAULT_SETTINGS.lookSens): number {
   const n = typeof v === "number" ? v : Number(v);
-  if (!Number.isFinite(n)) return DEFAULT_SETTINGS.lookSens;
+  if (!Number.isFinite(n)) return fallback;
   return Math.min(4, Math.max(0.25, Math.round(n * 100) / 100));
 }
 
@@ -84,12 +102,18 @@ export function clampSettings(raw: unknown): ClientSettings {
   const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const scaleRaw = o.renderScale ?? o.viewScale;
   return {
-    lookSens: clampLookSens(o.lookSens),
+    lookSens: clampLookSens(o.lookSens, DEFAULT_SETTINGS.lookSens),
+    touchLookSens: clampLookSens(o.touchLookSens, DEFAULT_SETTINGS.touchLookSens),
+    lookStick: o.lookStick === true,
+    lookStickSens: clampLookSens(o.lookStickSens, DEFAULT_SETTINGS.lookStickSens),
+    gyroEnabled: o.gyroEnabled === true,
+    gyroSens: clampLookSens(o.gyroSens, DEFAULT_SETTINGS.gyroSens),
     renderScale: clampRenderScale(scaleRaw),
     canvasScale: clampCanvasScale(o.canvasScale),
     hudPlacement: clampHudPlacement(o.hudPlacement),
     hudScale: clampHudScale(o.hudScale),
     showCrosshair: o.showCrosshair === false ? false : true,
+    musicEnabled: o.musicEnabled === false ? false : true,
   };
 }
 

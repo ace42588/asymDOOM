@@ -1,8 +1,14 @@
 // On-screen controls for thin client. Feeds web/src/thin/input.ts.
 
 import {
+  getClientSettings,
+  subscribeClientSettings,
+} from "./thin/clientSettings";
+import { initGyro, setGyroPlaying } from "./thin/gyro";
+import {
   touchAddLook,
   touchSetKey,
+  touchSetLookStick,
   touchSetRun,
   touchSetStick,
 } from "./thin/input";
@@ -27,10 +33,15 @@ let runOn = true;
 let fireHeld = false;
 let movePtr: number | null = null;
 let lookPtr: number | null = null;
+let lookStickPtr: number | null = null;
 let stickOriginX = 0;
 let stickOriginY = 0;
+let lookStickOriginX = 0;
+let lookStickOriginY = 0;
 let stickRadius = 56;
 let lastLookX = 0;
+let lastFireLookX = 0;
+let lastUseLookX = 0;
 let lastRole = "";
 let lastBody = "";
 let started = false;
@@ -60,8 +71,12 @@ function releaseAll() {
   for (const k of [...held]) setKey(k, false);
   setFire(false);
   touchSetStick(0, 0);
+  touchSetLookStick(0);
   movePtr = null;
   lookPtr = null;
+  lookStickPtr = null;
+  resetStick("touch-stick", "touch-stick-knob");
+  resetStick("touch-look-stick", "touch-look-stick-knob");
 }
 
 function bindHold(btn: HTMLElement, name: string) {
@@ -88,7 +103,14 @@ function bindHold(btn: HTMLElement, name: string) {
   btn.addEventListener("pointercancel", up);
 }
 
-function bindFire(btn: HTMLElement) {
+/** Hold button that also forwards horizontal drag into look (FIRE / USE). */
+function bindHoldWithLook(
+  btn: HTMLElement,
+  name: string,
+  getLastX: () => number,
+  setLastX: (x: number) => void,
+  isFire: boolean,
+) {
   const down = (e: PointerEvent) => {
     if (e.button !== 0 && e.pointerType === "mouse") return;
     e.preventDefault();
@@ -99,15 +121,25 @@ function bindFire(btn: HTMLElement) {
       /* older iOS */
     }
     btn.classList.add("pressed");
-    setFire(true);
+    setLastX(e.clientX);
+    if (isFire) setFire(true);
+    else setKey(name, true);
+  };
+  const move = (e: PointerEvent) => {
+    e.preventDefault();
+    const dx = e.clientX - getLastX();
+    setLastX(e.clientX);
+    if (dx !== 0) touchAddLook(dx);
   };
   const up = (e: PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
     btn.classList.remove("pressed");
-    setFire(false);
+    if (isFire) setFire(false);
+    else setKey(name, false);
   };
   btn.addEventListener("pointerdown", down);
+  btn.addEventListener("pointermove", move);
   btn.addEventListener("pointerup", up);
   btn.addEventListener("pointercancel", up);
 }
@@ -129,8 +161,14 @@ function bindTap(btn: HTMLElement, name: string) {
   btn.addEventListener("pointercancel", up);
 }
 
-function placeStick(x: number, y: number, zone: HTMLElement) {
-  const stick = el("touch-stick");
+function placeStick(
+  x: number,
+  y: number,
+  zone: HTMLElement,
+  stickId: string,
+  origin: { x: number; y: number },
+) {
+  const stick = el(stickId);
   const rect = zone.getBoundingClientRect();
   const r = stickRadius;
   const cx = Math.min(Math.max(x - rect.left, r + 8), rect.width - r - 8);
@@ -138,20 +176,23 @@ function placeStick(x: number, y: number, zone: HTMLElement) {
   stick.style.left = `${cx - r}px`;
   stick.style.top = `${cy - r}px`;
   stick.style.bottom = "auto";
-  stickOriginX = rect.left + cx;
-  stickOriginY = rect.top + cy;
+  stick.style.right = "auto";
+  origin.x = rect.left + cx;
+  origin.y = rect.top + cy;
 }
 
-function resetStick() {
-  const stick = el("touch-stick");
-  const knob = el("touch-stick-knob");
+function resetStick(stickId: string, knobId: string) {
+  const stick = document.getElementById(stickId);
+  const knob = document.getElementById(knobId);
+  if (!stick || !knob) return;
   stick.style.left = "";
   stick.style.top = "";
   stick.style.bottom = "";
+  stick.style.right = "";
   knob.style.transform = "translate(-50%, -50%)";
 }
 
-function onStickMove(x: number, y: number) {
+function onMoveStick(x: number, y: number) {
   const dx = x - stickOriginX;
   const dy = y - stickOriginY;
   const mag = Math.hypot(dx, dy);
@@ -165,16 +206,46 @@ function onStickMove(x: number, y: number) {
   touchSetStick(-ay, ax);
 }
 
+function onLookStickMove(x: number, y: number) {
+  const dx = x - lookStickOriginX;
+  const dy = y - lookStickOriginY;
+  const mag = Math.hypot(dx, dy);
+  const scale = mag > stickRadius ? stickRadius / mag : 1;
+  const kx = dx * scale;
+  const ky = dy * scale;
+  el("touch-look-stick-knob").style.transform =
+    `translate(calc(-50% + ${kx}px), calc(-50% + ${ky}px))`;
+  // Horizontal only — yaw. Vertical ignored (no free-look pitch).
+  const ax = mag < 1 ? 0 : dx / Math.max(mag, stickRadius);
+  // Right deflection → look right on screen → negate for world flip (same as swipe).
+  touchSetLookStick(-ax);
+}
+
+function applyLookStickChrome() {
+  const zone = document.getElementById("touch-look-zone");
+  if (!zone) return;
+  const on = getClientSettings().lookStick;
+  const playing = lastRole === "marine" || lastRole === "demon";
+  zone.classList.toggle("hidden", !on || !playing);
+  if (!on) {
+    lookStickPtr = null;
+    touchSetLookStick(0);
+    resetStick("touch-look-stick", "touch-look-stick-knob");
+  }
+}
+
 function applyTouchChrome() {
   const root = document.getElementById("touch-controls");
   if (!root || !document.body.classList.contains("touch-on")) return;
   const playing = lastRole === "marine" || lastRole === "demon";
-  el("touch-move").classList.toggle("hidden", !playing);
   el("touch-look").classList.toggle("hidden", !playing);
+  el("touch-move").classList.toggle("hidden", !playing);
   el("touch-actions").classList.toggle("hidden", !playing);
   el("touch-demon").classList.toggle("hidden", lastRole !== "demon");
   el("touch-weap").classList.toggle("hidden", lastRole !== "marine");
   el("touch-fly").classList.toggle("hidden", lastRole !== "demon" || !FLYERS.has(lastBody));
+  applyLookStickChrome();
+  setGyroPlaying(playing);
   if (!playing) releaseAll();
 }
 
@@ -195,12 +266,50 @@ function wantTouch(): boolean {
   return window.matchMedia("(pointer: coarse)").matches;
 }
 
+function bindLookStick() {
+  const zone = document.getElementById("touch-look-zone");
+  if (!zone) return;
+
+  const origin = { x: 0, y: 0 };
+  zone.addEventListener("pointerdown", (e) => {
+    if (!getClientSettings().lookStick) return;
+    if (lookStickPtr !== null) return;
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    e.preventDefault();
+    e.stopPropagation();
+    lookStickPtr = e.pointerId;
+    try {
+      zone.setPointerCapture(e.pointerId);
+    } catch {
+      /* older iOS */
+    }
+    placeStick(e.clientX, e.clientY, zone, "touch-look-stick", origin);
+    lookStickOriginX = origin.x;
+    lookStickOriginY = origin.y;
+    onLookStickMove(e.clientX, e.clientY);
+  });
+  zone.addEventListener("pointermove", (e) => {
+    if (e.pointerId !== lookStickPtr) return;
+    e.preventDefault();
+    onLookStickMove(e.clientX, e.clientY);
+  });
+  const endLookStick = (e: PointerEvent) => {
+    if (e.pointerId !== lookStickPtr) return;
+    lookStickPtr = null;
+    touchSetLookStick(0);
+    resetStick("touch-look-stick", "touch-look-stick-knob");
+  };
+  zone.addEventListener("pointerup", endLookStick);
+  zone.addEventListener("pointercancel", endLookStick);
+}
+
 function bindControls() {
   const move = el("touch-move");
   const look = el("touch-look");
 
   el("touch-controls").addEventListener("contextmenu", (e) => e.preventDefault());
 
+  const moveOrigin = { x: 0, y: 0 };
   move.addEventListener("pointerdown", (e) => {
     if (movePtr !== null) return;
     if (e.button !== 0 && e.pointerType === "mouse") return;
@@ -211,19 +320,21 @@ function bindControls() {
     } catch {
       /* older iOS */
     }
-    placeStick(e.clientX, e.clientY, move);
-    onStickMove(e.clientX, e.clientY);
+    placeStick(e.clientX, e.clientY, move, "touch-stick", moveOrigin);
+    stickOriginX = moveOrigin.x;
+    stickOriginY = moveOrigin.y;
+    onMoveStick(e.clientX, e.clientY);
   });
   move.addEventListener("pointermove", (e) => {
     if (e.pointerId !== movePtr) return;
     e.preventDefault();
-    onStickMove(e.clientX, e.clientY);
+    onMoveStick(e.clientX, e.clientY);
   });
   const endMove = (e: PointerEvent) => {
     if (e.pointerId !== movePtr) return;
     movePtr = null;
     touchSetStick(0, 0);
-    resetStick();
+    resetStick("touch-stick", "touch-stick-knob");
   };
   move.addEventListener("pointerup", endMove);
   move.addEventListener("pointercancel", endMove);
@@ -254,8 +365,26 @@ function bindControls() {
   look.addEventListener("pointerup", endLook);
   look.addEventListener("pointercancel", endLook);
 
-  bindFire(el("touch-fire"));
-  bindHold(el("touch-use"), KEY.use);
+  bindLookStick();
+
+  bindHoldWithLook(
+    el("touch-fire"),
+    KEY.fire,
+    () => lastFireLookX,
+    (x) => {
+      lastFireLookX = x;
+    },
+    true,
+  );
+  bindHoldWithLook(
+    el("touch-use"),
+    KEY.use,
+    () => lastUseLookX,
+    (x) => {
+      lastUseLookX = x;
+    },
+    false,
+  );
   bindTap(el("touch-weap"), KEY.weapNext);
   bindHold(el("touch-hop"), KEY.hop);
   bindHold(el("touch-fly-up"), KEY.flyUp);
@@ -282,6 +411,8 @@ function bindControls() {
   });
   window.addEventListener("blur", releaseAll);
   window.addEventListener("pagehide", releaseAll);
+
+  subscribeClientSettings(() => applyLookStickChrome());
 }
 
 function startTouchControls() {
@@ -289,11 +420,13 @@ function startTouchControls() {
   started = true;
   document.body.classList.add("touch-on");
   el("touch-controls").classList.remove("hidden");
+  initGyro();
   bindControls();
   applyTouchChrome();
 }
 
 export function initTouchControls() {
+  initGyro();
   if (wantTouch()) {
     startTouchControls();
     return;

@@ -6,9 +6,70 @@ import {
   composeIntent,
   touchSetStick,
   touchSetRun,
+  touchSetLookStick,
+  touchAddLook,
+  touchDxToTurnDelta,
+  gyroRateToTurnDelta,
   sampleIntent,
   buildInputMessage,
+  LOOK_SENS,
+  KEY_TURN_RATE,
+  LOOK_STICK_RATE,
+  TOUCH_LOOK_REF_FRAC,
+  TURN_DELTA_180,
+  effectiveLookSens,
 } from "../thin/input.js";
+import {
+  STORAGE_KEY,
+  loadClientSettings,
+  setClientSettings,
+} from "../thin/clientSettings.js";
+import { yawRateFromRotation } from "../thin/gyro.js";
+
+function installMemoryStorage() {
+  const map = new Map<string, string>();
+  (globalThis as { localStorage?: object }).localStorage = {
+    getItem: (k: string) => (map.has(k) ? map.get(k)! : null),
+    setItem: (k: string, v: string) => {
+      map.set(k, String(v));
+    },
+    removeItem: (k: string) => {
+      map.delete(k);
+    },
+    clear: () => map.clear(),
+  };
+}
+
+describe("touch / gyro look math", () => {
+  it("touchDxToTurnDelta: ref swipe at sens 1 ≈ 180°", () => {
+    const vw = 400;
+    const dx = TOUCH_LOOK_REF_FRAC * vw;
+    const delta = touchDxToTurnDelta(dx, vw, 1);
+    assert.ok(Math.abs(delta + TURN_DELTA_180) < 1e-9);
+    // Host ×800 → 32768 angleturn = half circle
+    assert.equal(Math.round(Math.abs(delta) * 800), 32768);
+  });
+
+  it("touchDxToTurnDelta scales with touchLookSens", () => {
+    const a = touchDxToTurnDelta(10, 400, 1);
+    const b = touchDxToTurnDelta(10, 400, 2);
+    assert.equal(b, a * 2);
+  });
+
+  it("gyroRateToTurnDelta: 180 deg over 1s at sens 1 = 180° wire", () => {
+    const d = gyroRateToTurnDelta(180, 1, 1);
+    assert.ok(Math.abs(d + TURN_DELTA_180) < 1e-9);
+    assert.equal(gyroRateToTurnDelta(0, 1, 1), 0);
+    assert.equal(gyroRateToTurnDelta(90, 0, 1), 0);
+  });
+
+  it("yawRateFromRotation picks axis by orientation angle", () => {
+    assert.equal(yawRateFromRotation(1, 2, 3, 0), 3);
+    assert.equal(yawRateFromRotation(1, 2, 3, 90), -1);
+    assert.equal(yawRateFromRotation(1, 2, 3, 270), 1);
+    assert.equal(yawRateFromRotation(1, 2, 3, 180), -3);
+  });
+});
 
 describe("intent axes (protocol [-1,1])", () => {
   it("composeIntent clamps oversized forward/strafe", () => {
@@ -30,6 +91,41 @@ describe("intent axes (protocol [-1,1])", () => {
     assert.ok(intent.forward >= -1 && intent.forward <= 1);
     assert.ok(intent.strafe >= -1 && intent.strafe <= 1);
     touchSetStick(0, 0);
+  });
+
+  it("look stick full deflection ≈ KEY_TURN_RATE × lookStickSens", () => {
+    installMemoryStorage();
+    localStorage.removeItem(STORAGE_KEY);
+    loadClientSettings();
+    setClientSettings({ lookStickSens: 1 });
+    touchSetLookStick(0);
+    sampleIntent(); // clear any leftover turnAccum
+    touchSetLookStick(1);
+    const { intent } = sampleIntent();
+    assert.ok(Math.abs(intent.turnDelta - LOOK_STICK_RATE) < 1e-9);
+    assert.equal(LOOK_STICK_RATE, KEY_TURN_RATE);
+    touchSetLookStick(0);
+    assert.equal(sampleIntent().intent.turnDelta, 0);
+    setClientSettings({ lookStickSens: 2 });
+    touchSetLookStick(1);
+    assert.ok(Math.abs(sampleIntent().intent.turnDelta - LOOK_STICK_RATE * 2) < 1e-9);
+    touchSetLookStick(0);
+    sampleIntent();
+  });
+
+  it("touchAddLook uses touchLookSens not mouse LOOK_SENS", () => {
+    installMemoryStorage();
+    localStorage.removeItem(STORAGE_KEY);
+    loadClientSettings();
+    setClientSettings({ lookSens: 1, touchLookSens: 1 });
+    sampleIntent();
+    const vw = typeof window !== "undefined" && window.innerWidth > 0 ? window.innerWidth : 390;
+    const dx = TOUCH_LOOK_REF_FRAC * vw;
+    touchAddLook(dx);
+    const { intent } = sampleIntent();
+    assert.ok(Math.abs(intent.turnDelta + TURN_DELTA_180) < 1e-6);
+    // Mouse path still uses LOOK_SENS
+    assert.equal(effectiveLookSens(), LOOK_SENS);
   });
 
   it("run multiplies on host side only — client keeps axis at 1", () => {

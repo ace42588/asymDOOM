@@ -25,6 +25,11 @@
             <div id="touch-stick-knob"></div>
           </div>
         </div>
+        <div id="touch-look-zone" class="hidden">
+          <div id="touch-look-stick">
+            <div id="touch-look-stick-knob"></div>
+          </div>
+        </div>
         <div id="touch-actions">
           <button type="button" id="touch-use" class="touch-btn" tabindex="-1">USE</button>
           <button type="button" id="touch-weap" class="touch-btn" tabindex="-1">WEAP</button>
@@ -62,6 +67,30 @@
             <input id="set-look-sens" type="range" min="0.25" max="4" step="0.05" value="1" />
             <span id="set-look-sens-val" class="settings-val">1.00×</span>
           </label>
+          <label class="settings-row">
+            <span>Touch look</span>
+            <input id="set-touch-look-sens" type="range" min="0.25" max="4" step="0.05" value="1" />
+            <span id="set-touch-look-sens-val" class="settings-val">1.00×</span>
+          </label>
+          <label class="settings-row settings-check">
+            <input id="set-look-stick" type="checkbox" />
+            <span>Look stick</span>
+          </label>
+          <label class="settings-row" id="set-look-stick-sens-row">
+            <span>Stick sens</span>
+            <input id="set-look-stick-sens" type="range" min="0.25" max="4" step="0.05" value="1" />
+            <span id="set-look-stick-sens-val" class="settings-val">1.00×</span>
+          </label>
+          <label class="settings-row settings-check">
+            <input id="set-gyro" type="checkbox" />
+            <span>Gyro look</span>
+          </label>
+          <label class="settings-row" id="set-gyro-sens-row">
+            <span>Gyro sens</span>
+            <input id="set-gyro-sens" type="range" min="0.25" max="4" step="0.05" value="1" />
+            <span id="set-gyro-sens-val" class="settings-val">1.00×</span>
+          </label>
+          <p id="set-gyro-status" class="settings-status" hidden></p>
           <label class="settings-row">
             <span>Render scale</span>
             <select id="set-render-scale">

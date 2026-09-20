@@ -199,6 +199,18 @@ canvas#minimap {
   font-variant-numeric: tabular-nums;
 }
 
+#client-settings .settings-status {
+  margin: 0 0 4px;
+  padding: 0 2px;
+  font-size: 12px;
+  color: #c08080;
+}
+
+#client-settings .settings-row.is-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 #client-settings select,
 #client-settings input[type="range"] {
   width: 100%;
@@ -235,7 +247,7 @@ body.touch-on #hud-hint {
   top: 0;
   right: 0;
   left: 42%;
-  bottom: 170px;
+  bottom: 0;
   pointer-events: auto;
   touch-action: none;
   z-index: 1;
@@ -252,10 +264,20 @@ body.touch-on #hud-hint {
   z-index: 2;
 }
 
-#touch-stick {
+#touch-look-zone {
   position: absolute;
-  left: calc(18px + env(safe-area-inset-left, 0px));
-  bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+  right: 0;
+  bottom: 0;
+  width: 48%;
+  height: 45%;
+  pointer-events: auto;
+  touch-action: none;
+  z-index: 2;
+}
+
+#touch-stick,
+#touch-look-stick {
+  position: absolute;
   width: 128px;
   height: 128px;
   border-radius: 50%;
@@ -264,7 +286,18 @@ body.touch-on #hud-hint {
   pointer-events: none;
 }
 
-#touch-stick-knob {
+#touch-stick {
+  left: calc(18px + env(safe-area-inset-left, 0px));
+  bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+}
+
+#touch-look-stick {
+  right: calc(120px + env(safe-area-inset-right, 0px));
+  bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+}
+
+#touch-stick-knob,
+#touch-look-stick-knob {
   position: absolute;
   left: 50%;
   top: 50%;
@@ -274,6 +307,11 @@ body.touch-on #hud-hint {
   background: rgba(255, 176, 0, 0.58);
   box-shadow: 0 0 12px rgba(255, 176, 0, 0.35);
   transform: translate(-50%, -50%);
+}
+
+#touch-look-stick-knob {
+  background: rgba(120, 180, 255, 0.58);
+  box-shadow: 0 0 12px rgba(120, 180, 255, 0.35);
 }
 
 #touch-actions {

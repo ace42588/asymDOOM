@@ -49,10 +49,39 @@ describe("client settings", () => {
   });
 
   it("clampSettings clamps lookSens and hudScale ranges", () => {
-    const s = clampSettings({ lookSens: 99, hudScale: 0.1, showCrosshair: false });
+    const s = clampSettings({ lookSens: 99, hudScale: 0.1, showCrosshair: false, musicEnabled: false });
     assert.equal(s.lookSens, 4);
     assert.equal(s.hudScale, 0.5);
     assert.equal(s.showCrosshair, false);
+    assert.equal(s.musicEnabled, false);
+  });
+
+  it("clampSettings defaults new look fields for legacy localStorage", () => {
+    const s = clampSettings({ lookSens: 1.5, showCrosshair: true });
+    assert.equal(s.touchLookSens, 1);
+    assert.equal(s.lookStick, false);
+    assert.equal(s.lookStickSens, 1);
+    assert.equal(s.gyroEnabled, false);
+    assert.equal(s.gyroSens, 1);
+  });
+
+  it("clampSettings clamps touch / stick / gyro sens and bools", () => {
+    const s = clampSettings({
+      touchLookSens: 99,
+      lookStick: true,
+      lookStickSens: 0.1,
+      gyroEnabled: 1,
+      gyroSens: -3,
+    });
+    assert.equal(s.touchLookSens, 4);
+    assert.equal(s.lookStick, true);
+    assert.equal(s.lookStickSens, 0.25);
+    assert.equal(s.gyroEnabled, false); // only true when === true
+    assert.equal(s.gyroSens, 0.25);
+  });
+
+  it("clampSettings defaults music on when omitted (legacy localStorage)", () => {
+    assert.equal(clampSettings({ showCrosshair: true }).musicEnabled, true);
   });
 
   it("clampSettings rejects unsupported render scales (3× / 5×)", () => {
@@ -68,16 +97,28 @@ describe("client settings", () => {
   it("persists canvasScale round-trip", () => {
     setClientSettings({
       lookSens: 1.5,
+      touchLookSens: 2,
+      lookStick: true,
+      lookStickSens: 1.25,
+      gyroEnabled: true,
+      gyroSens: 0.75,
       renderScale: 2,
       canvasScale: 2,
       hudPlacement: "below",
       hudScale: 0.75,
       showCrosshair: false,
+      musicEnabled: false,
     });
     const again = loadClientSettings();
     assert.equal(again.renderScale, 2);
     assert.equal(again.canvasScale, 2);
     assert.equal(again.hudPlacement, "below");
+    assert.equal(again.musicEnabled, false);
+    assert.equal(again.touchLookSens, 2);
+    assert.equal(again.lookStick, true);
+    assert.equal(again.lookStickSens, 1.25);
+    assert.equal(again.gyroEnabled, true);
+    assert.equal(again.gyroSens, 0.75);
   });
 
   it("resolveRenderScale Auto is full WASM 4×", () => {
