@@ -119,11 +119,13 @@ describe("snapshot apply", () => {
         update: [],
         despawn: [],
       },
+      switches: { spawn: [{ id: 42, top: 0, mid: 87, bot: 12 }], update: [], despawn: [] },
     });
     assert.equal(s.entities.actors.size, 1);
     assert.equal(s.entities.doors.size, 1);
     assert.equal(s.entities.doors.get(0)!.state, "opening");
     assert.equal(s.entities.projectiles.get(9)!.angle, 45);
+    assert.equal(s.entities.switches.get(42)!.mid, 87);
     s = reduceServerMessage(s, {
       type: "snapshot",
       protocolVersion: 1,
@@ -160,10 +162,12 @@ describe("snapshot apply", () => {
       actors: { spawn: [], update: [], despawn: [2] },
       doors: { spawn: [], update: [], despawn: [0] },
       projectiles: { spawn: [], update: [], despawn: [9] },
+      switches: { spawn: [], update: [], despawn: [42] },
     });
     assert.equal(s.entities.actors.size, 0);
     assert.equal(s.entities.doors.size, 0);
     assert.equal(s.entities.projectiles.size, 0);
+    assert.equal(s.entities.switches.size, 0);
   });
 
   it("mapLoad sets loading until snapshot", () => {
@@ -258,5 +262,6 @@ describe("entity map", () => {
     assert.equal(m.doors.size, 0);
     assert.equal(m.movers.size, 0);
     assert.equal(m.projectiles.size, 0);
+    assert.equal(m.switches.size, 0);
   });
 });

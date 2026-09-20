@@ -9,7 +9,7 @@
  *
  * Browser loads /asym_view_{s}x.js; Node tests use configureWasmViewNode().
  */
-import type { ClientState, Actor, Door, Mover, Projectile } from "../state";
+import type { ClientState, Actor, Door, Mover, Projectile, SwitchTex } from "../state";
 
 export type RenderScale = 1 | 2 | 4;
 
@@ -44,7 +44,7 @@ const IWAD_FS_PATH = "/doom1.wad";
 /** HTTP URL for fetching the IWAD from the sim host. Set via setIwadHttpUrl / join.wadUrl. */
 let iwadHttpUrl: string | null = null;
 /** Bump when native viewer ABI changes so browsers drop stale artifacts. */
-const WASM_REV = "res1";
+const WASM_REV = "sw1";
 
 /** Configure where the browser fetches doom1.wad (absolute sim URL). */
 export function setIwadHttpUrl(url: string) {
@@ -216,6 +216,17 @@ function applyDoorsMovers(m: AsymViewModule, state: ClientState) {
     m.ccall("asym_view_apply_movers", null, ["number", "number"], [moverPtr, movers.length]);
     m._free(moverPtr);
   }
+
+  const switches = [...state.entities.switches.values()];
+  const switchStride = 16;
+  const switchPtr = writeStructArray(m, switches, switchStride, (p, s: SwitchTex) => {
+    m.setValue(p + 0, s.id ?? 0, "i32");
+    m.setValue(p + 4, s.top ?? 0, "i32");
+    m.setValue(p + 8, s.mid ?? 0, "i32");
+    m.setValue(p + 12, s.bot ?? 0, "i32");
+  });
+  m.ccall("asym_view_apply_switches", null, ["number", "number"], [switchPtr, switches.length]);
+  if (switchPtr) m._free(switchPtr);
 }
 
 function syncActors(m: AsymViewModule, state: ClientState, hideId: number) {

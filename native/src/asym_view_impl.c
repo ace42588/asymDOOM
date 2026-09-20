@@ -72,6 +72,59 @@ static int g_argc = 0;
 static int g_pending_scale = 4;
 static int g_logged_scale = 0;
 
+/* Front-sidedef textures at last P_SetupLevel (keyed by linedef). */
+static short *g_sw_orig = NULL;
+static int g_sw_nlines = 0;
+static int g_sw_patched[ASYM_VIEW_MAX_SWITCHES];
+static int g_sw_patched_count = 0;
+
+static void capture_switch_originals(void)
+{
+    int i;
+    free(g_sw_orig);
+    g_sw_orig = NULL;
+    g_sw_nlines = numlines;
+    g_sw_patched_count = 0;
+    if (g_sw_nlines <= 0) return;
+    g_sw_orig = (short *)malloc((size_t)g_sw_nlines * 3 * sizeof(short));
+    if (!g_sw_orig) {
+        g_sw_nlines = 0;
+        return;
+    }
+    for (i = 0; i < g_sw_nlines; i++) {
+        int sn = lines[i].sidenum[0];
+        short top = 0, mid = 0, bot = 0;
+        if (sn >= 0 && sn < numsides) {
+            top = sides[sn].toptexture;
+            mid = sides[sn].midtexture;
+            bot = sides[sn].bottomtexture;
+        }
+        g_sw_orig[i * 3 + 0] = top;
+        g_sw_orig[i * 3 + 1] = mid;
+        g_sw_orig[i * 3 + 2] = bot;
+    }
+}
+
+static void restore_patched_switches(void)
+{
+    int i;
+    if (!g_sw_orig) {
+        g_sw_patched_count = 0;
+        return;
+    }
+    for (i = 0; i < g_sw_patched_count; i++) {
+        int id = g_sw_patched[i];
+        int sn;
+        if (id < 0 || id >= g_sw_nlines || id >= numlines) continue;
+        sn = lines[id].sidenum[0];
+        if (sn < 0 || sn >= numsides) continue;
+        sides[sn].toptexture = g_sw_orig[id * 3 + 0];
+        sides[sn].midtexture = g_sw_orig[id * 3 + 1];
+        sides[sn].bottomtexture = g_sw_orig[id * 3 + 2];
+    }
+    g_sw_patched_count = 0;
+}
+
 static int clamp_fb_scale(int scale)
 {
     int max_s = DOOMGENERIC_RESX / SCREENWIDTH;
@@ -224,6 +277,7 @@ int asym_view_create(const char *iwad_path)
     doomgeneric_Create(g_argc, g_argv);
     force_fullscreen();
     strip_dynamic_mobjs();
+    capture_switch_originals();
     g_map_ep = 1;
     g_map_num = 1;
     g_created = 1;
@@ -246,6 +300,7 @@ int asym_view_load_map(int episode, int map)
     G_InitNew(sk_medium, episode, map);
     force_fullscreen();
     strip_dynamic_mobjs();
+    capture_switch_originals();
     g_map_ep = episode;
     g_map_num = map;
     return 0;
@@ -327,6 +382,26 @@ void asym_view_apply_movers(const asym_view_mover *movers, int count)
         if (!sec) continue;
         sec->floorheight = FLOAT_TO_FIXED(movers[i].floor);
         sec->ceilingheight = FLOAT_TO_FIXED(movers[i].ceiling);
+    }
+}
+
+void asym_view_apply_switches(const asym_view_switch *sw, int count)
+{
+    int i;
+    restore_patched_switches();
+    if (!sw || count <= 0) return;
+    if (g_sw_nlines != numlines) capture_switch_originals();
+    for (i = 0; i < count; i++) {
+        int id = sw[i].id;
+        int sn;
+        if (id < 0 || id >= numlines) continue;
+        sn = lines[id].sidenum[0];
+        if (sn < 0 || sn >= numsides) continue;
+        sides[sn].toptexture = (short)sw[i].top;
+        sides[sn].midtexture = (short)sw[i].mid;
+        sides[sn].bottomtexture = (short)sw[i].bot;
+        if (g_sw_patched_count < ASYM_VIEW_MAX_SWITCHES)
+            g_sw_patched[g_sw_patched_count++] = id;
     }
 }
 

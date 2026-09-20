@@ -2,7 +2,7 @@
 
 Validation layers (in order):
 
-1. **L1 — Protocol fidelity** — if a snapshot field exists (`actors`, `projectiles`, `doors`/`movers`, `marine`, `events`), the canvas must show it. Camera pose, species, sprite/frame, openings, vitals, and projectiles come from the wire.
+1. **L1 — Protocol fidelity** — if a snapshot field exists (`actors`, `projectiles`, `doors`/`movers`, `switches`, `marine`, `events`), the canvas must show it. Camera pose, species, sprite/frame, openings, switch textures, vitals, and projectiles come from the wire.
 2. **L2 — Recognizable Doom** — where the protocol is silent, match shareware look-and-feel (SKY1, COLORMAP, DONTPEGTOP, animated nukage, spectre fuzz, pain flash). Not pixel-identical to Chocolate Doom.
 
 ## World renderer
@@ -13,7 +13,7 @@ World blit is the **WASM BSP viewer** (`asym_view`): native `R_RenderPlayerView`
 
 | Source | Responsibility |
 | --- | --- |
-| **Protocol** | Moving sectors (doors, plats, floors, ceilings), living/dead actors, pickups, consumable gore props (dead bodies/gibs), missiles, combat FX (puff/blood), marine vitals |
+| **Protocol** | Moving sectors (doors, plats, floors, ceilings), wall switch textures, living/dead actors, pickups, consumable gore props (dead bodies/gibs), missiles, combat FX (puff/blood), marine vitals |
 | **Client IWAD (WASM)** | Static map geometry + textures/flats + non-consumable map `THINGS` decorations via `P_SetupLevel`; HUD sprite patches for STBAR/weapons |
 
 Native snapshot actors cover `MT_PLAYER` / `MF_COUNTKILL` / `MF_SHOOTABLE` / `MF_CORPSE` / `MF_SPECIAL` / consumable gore (`MT_MISC61`–`69`, `71`, `84`–`86`). Other decorations stay in the viewer from the map load path.

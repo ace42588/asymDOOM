@@ -17,6 +17,7 @@ extern "C" {
 #define ASYM_MAX_DOORS 128
 #define ASYM_MAX_MOVERS 128
 #define ASYM_MAX_PROJECTILES 256
+#define ASYM_MAX_SWITCHES 50
 #define ASYM_MAX_EVENTS 64
 #define ASYM_SESSION_ID_LEN 64
 
@@ -86,6 +87,14 @@ typedef struct asym_projectile {
     int frame;
 } asym_projectile;
 
+/* Front-sidedef textures that differ from the IWAD map load (wall switches). */
+typedef struct asym_switch {
+    int id;  /* linedef index */
+    int top;
+    int mid;
+    int bot;
+} asym_switch;
+
 typedef struct asym_marine_vitals {
     int health;
     int armor;
@@ -119,6 +128,8 @@ typedef struct asym_snapshot {
     asym_marine_vitals marine;
     int map_ready;
     int pending_reload;
+    int switch_count;
+    asym_switch switches[ASYM_MAX_SWITCHES];
 } asym_snapshot;
 
 typedef enum asym_event_kind {
@@ -221,6 +232,10 @@ size_t asym_sizeof_debug_sim(void);
 
 /* Test helper: route through S_StartSound (NULL origin) for capture checks. */
 void asym_test_start_sound(int sfx_id);
+
+/* Test helper: P_ChangeSwitchTexture on the first switch-textured linedef.
+ * use_again != 0 starts a BUTTONTIME revert. Returns linedef index, or -1. */
+int asym_test_flip_first_switch(int use_again);
 
 #ifdef __cplusplus
 }

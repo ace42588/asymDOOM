@@ -20,6 +20,7 @@
 #include "p_spec.h"
 #include "info.h"
 #include "r_defs.h"
+#include "r_state.h"
 #include "i_system.h"
 #include "d_items.h"
 
@@ -65,6 +66,39 @@ struct asym_embed {
 /* doomgeneric global init is once-per-process */
 static int g_dg_inited = 0;
 static asym_embed *g_live_embed = NULL;
+
+/* Front-sidedef textures at last P_SetupLevel (keyed by linedef). */
+static short *g_sw_base = NULL;
+static int g_sw_nlines = 0;
+
+extern int switchlist[];
+extern int numswitches;
+
+static void capture_switch_baseline(void)
+{
+    int i;
+    free(g_sw_base);
+    g_sw_base = NULL;
+    g_sw_nlines = numlines;
+    if (g_sw_nlines <= 0) return;
+    g_sw_base = (short *)malloc((size_t)g_sw_nlines * 3 * sizeof(short));
+    if (!g_sw_base) {
+        g_sw_nlines = 0;
+        return;
+    }
+    for (i = 0; i < g_sw_nlines; i++) {
+        int sn = lines[i].sidenum[0];
+        short top = 0, mid = 0, bot = 0;
+        if (sn >= 0 && sn < numsides) {
+            top = sides[sn].toptexture;
+            mid = sides[sn].midtexture;
+            bot = sides[sn].bottomtexture;
+        }
+        g_sw_base[i * 3 + 0] = top;
+        g_sw_base[i * 3 + 1] = mid;
+        g_sw_base[i * 3 + 2] = bot;
+    }
+}
 
 /* Forward decls from our timing override */
 extern void asym_host_set_ticks_ms(uint32_t ms);
@@ -157,6 +191,7 @@ asym_embed *asym_create(const asym_config *cfg)
                         cfg->possess_mask ? cfg->possess_mask : ASYM_P_DEFAULT,
                         &e->events);
         G_InitNew((skill_t)cfg->skill, cfg->episode, cfg->map);
+        capture_switch_baseline();
         settle_ticks();
         e->created = 1;
         fprintf(stderr, "[asym] re-init E%iM%i (actors=%u)\n",
@@ -206,6 +241,7 @@ asym_embed *asym_create(const asym_config *cfg)
     g_live_embed = e;
 
     G_InitNew((skill_t)cfg->skill, cfg->episode, cfg->map);
+    capture_switch_baseline();
     settle_ticks();
 
     e->created = 1;
@@ -233,6 +269,7 @@ void asym_tick(asym_embed *e)
     if (e->rules.need_round_reload) {
         e->rules.need_round_reload = 0;
         G_InitNew((skill_t)e->cfg.skill, e->cfg.episode, e->cfg.map);
+        capture_switch_baseline();
     }
 
     g_host_ticks_ms += 1000 / TICRATE;
@@ -490,6 +527,34 @@ void asym_get_snapshot(asym_embed *e, asym_snapshot *out)
         }
         out->marine.damagecount = pl->damagecount;
     }
+
+    /* Wall switches: linedefs whose front textures left the IWAD baseline. */
+    if (g_sw_nlines != numlines) capture_switch_baseline();
+    if (g_sw_base) {
+        int i;
+        for (i = 0; i < numlines && out->switch_count < ASYM_MAX_SWITCHES; i++) {
+            int sn = lines[i].sidenum[0];
+            short top = 0, mid = 0, bot = 0;
+            if (sn >= 0 && sn < numsides) {
+                top = sides[sn].toptexture;
+                mid = sides[sn].midtexture;
+                bot = sides[sn].bottomtexture;
+            }
+            if (i >= g_sw_nlines) continue;
+            if (top == g_sw_base[i * 3 + 0]
+                && mid == g_sw_base[i * 3 + 1]
+                && bot == g_sw_base[i * 3 + 2]) {
+                continue;
+            }
+            {
+                asym_switch *s = &out->switches[out->switch_count++];
+                s->id = i;
+                s->top = top;
+                s->mid = mid;
+                s->bot = bot;
+            }
+        }
+    }
 }
 
 int asym_events_pull(asym_embed *e, asym_event *out, int max_out)
@@ -613,4 +678,29 @@ void asym_test_start_sound(int sfx_id)
 {
     extern void S_StartSound(void *origin, int sound_id);
     S_StartSound(NULL, sfx_id);
+}
+
+static int is_switch_tex(int tex)
+{
+    int i;
+    for (i = 0; i < numswitches * 2; i++) {
+        if (switchlist[i] == tex) return 1;
+    }
+    return 0;
+}
+
+int asym_test_flip_first_switch(int use_again)
+{
+    int i;
+    for (i = 0; i < numlines; i++) {
+        int sn = lines[i].sidenum[0];
+        if (sn < 0 || sn >= numsides) continue;
+        if (is_switch_tex(sides[sn].toptexture)
+            || is_switch_tex(sides[sn].midtexture)
+            || is_switch_tex(sides[sn].bottomtexture)) {
+            P_ChangeSwitchTexture(&lines[i], use_again ? 1 : 0);
+            return i;
+        }
+    }
+    return -1;
 }

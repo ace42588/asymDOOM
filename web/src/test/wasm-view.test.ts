@@ -122,4 +122,26 @@ describe("wasm view smoke", () => {
       );
     }
   });
+
+  it("applies switch textures then restores on despawn", async () => {
+    setupWasmViewForNode();
+    const wasm = new WasmWorldRenderer();
+    await wasm.ensureReady(1);
+
+    const state = createClientState();
+    state.mapName = "E1M1";
+    state.role = "marine";
+    state.controlledId = 1;
+    state.tick = 35;
+    state.entities.actors.set(1, marineAt());
+    state.entities.switches.set(0, { id: 0, top: 1, mid: 1, bot: 1 });
+
+    const cam = { x: 1056, y: -3616, z: 0, angle: 90 };
+    const flipped = wasm.render(state, cam, { hideActorId: 1 });
+    assert.ok(flipped, "render with switch applied");
+
+    state.entities.switches.delete(0);
+    const restored = wasm.render(state, cam, { hideActorId: 1 });
+    assert.ok(restored, "render after switch despawn");
+  });
 });

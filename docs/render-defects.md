@@ -24,5 +24,6 @@ Status: `open` | `in_progress` | `fixed` | `wontfix`
 | RD-19 | slime walkway / steps | client-bug | cosmetic | Corner+height-change rays: short past-eps rejected real portals; vertex ties preferred 2S over 1S solid → 1px void needles | C | fixed |
 | RD-20 | corners / windows / CSS | client-bug | cosmetic | Silhouette hairlines: pixel-edge rays + endpoint U texels + fractional CSS pixelated scale; sealed spikes + integer canvas scale | C | fixed |
 | RD-21 | convex corners / steps | client-bug | cosmetic | Open corners: rays slipped between segs at shared vertices → far wall/void needles; solid seg extend + vertex skim closer | C | fixed |
+| RD-22 | switches | protocol | wrong sim read | Pressed wall-switch textures never left the host; clients kept IWAD SW1* | A | fixed |
 
 Harness: `web/src/test/wasm-view.test.ts` plus the playtest catalog in [thin-playtest.md](./thin-playtest.md). Contract: [render-contract.md](./render-contract.md).

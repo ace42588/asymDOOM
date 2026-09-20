@@ -88,7 +88,7 @@ Both remove the target and emit a `points` event.
 ### Snapshot fields
 
 - `mapName` (required) — e.g. `E1M1`
-- `actors` / `projectiles` / `doors` / `movers` — entity deltas (`spawn` / `update` / `despawn`)
+- `actors` / `projectiles` / `doors` / `movers` / `switches` — entity deltas (`spawn` / `update` / `despawn`)
 - `marine` — optional vitals `{ health, armor, ammo, weapon }` when role is marine
 - `events` — `possess`, `release`, `hop`, `hopfail`, `spectate`, `points`, `mods`, `pain`, `marineKill`, `roundReload`, `mapLoaded`, `secret`, `sound`
 
@@ -96,6 +96,10 @@ Door entries: `{ id, state, position }` where `state` is
 `open` | `closed` | `opening` | `closing` | `waiting` (plus optional x/y/z).
 Mover entries (plats / floors / ceilings): `{ id, kind, state, floor, ceiling }` where
 `kind` is `plat` | `floor` | `ceiling` and `state` is `waiting` | `up` | `down`.
+Switch entries: `{ id, top, mid, bot }` where `id` is the linedef index and
+`top` / `mid` / `bot` are the current front-sidedef TEXTURE1 indices. Only lines
+whose textures differ from the IWAD map load are listed (pressed wall switches).
+Repeatable buttons despawn when they revert.
 Projectile entries: `{ id, type, x, y, z, angle, … }` plus optional `sprite` / `frame`
 (also carries short-lived combat FX: puff / blood).
 

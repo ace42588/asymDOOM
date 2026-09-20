@@ -16,6 +16,7 @@ extern "C" {
 #define ASYM_VIEW_MAX_MOVERS 128
 #define ASYM_VIEW_MAX_ACTORS 512
 #define ASYM_VIEW_MAX_PROJECTILES 256
+#define ASYM_VIEW_MAX_SWITCHES 50
 
 typedef struct asym_view_mover {
     int id;
@@ -50,6 +51,13 @@ typedef struct asym_view_projectile {
     int frame;
 } asym_view_projectile;
 
+typedef struct asym_view_switch {
+    int id;  /* linedef index */
+    int top;
+    int mid;
+    int bot;
+} asym_view_switch;
+
 /** Boot engine with IWAD already present at iwad_path (e.g. MEMFS "/doom1.wad").
  *  Returns 0 on success. Idempotent if already created. */
 int asym_view_create(const char *iwad_path);
@@ -68,6 +76,8 @@ void asym_view_set_hide_psprites(int hide);
 
 void asym_view_apply_doors(const asym_view_door *doors, int count);
 void asym_view_apply_movers(const asym_view_mover *movers, int count);
+/** Apply current switch textures; restores WAD originals for unlisted lines. */
+void asym_view_apply_switches(const asym_view_switch *sw, int count);
 
 /** Replace protocol-driven mobjs; map THINGS decorations stay from setup. */
 void asym_view_sync_actors(const asym_view_actor *actors, int count, uint32_t hide_id);

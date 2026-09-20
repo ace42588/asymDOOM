@@ -1,7 +1,7 @@
 /**
  * Map embed/native views onto the contracts wire format (PROTOCOL.md + schemas).
  */
-import type { DoorView, MoverView, ProjectileView } from "./embedTypes.js";
+import type { DoorView, MoverView, ProjectileView, SwitchView } from "./embedTypes.js";
 
 export type DoorWireState = "open" | "closed" | "opening" | "closing" | "waiting";
 export type MoverWireKind = "plat" | "floor" | "ceiling";
@@ -58,6 +58,13 @@ export interface WireProjectile {
   frame?: number;
 }
 
+export interface WireSwitch {
+  id: number;
+  top: number;
+  mid: number;
+  bot: number;
+}
+
 /** Encode embed door → wire door (string state; optional x/y/z). */
 export function encodeDoor(d: DoorView): WireDoor {
   const out: WireDoor = {
@@ -101,4 +108,8 @@ export function encodeProjectile(p: ProjectileView): WireProjectile {
   if (p.sprite != null) out.sprite = p.sprite;
   if (p.frame != null) out.frame = p.frame;
   return out;
+}
+
+export function encodeSwitch(s: SwitchView): WireSwitch {
+  return { id: s.id, top: s.top, mid: s.mid, bot: s.bot };
 }

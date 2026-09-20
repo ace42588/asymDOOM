@@ -47,6 +47,7 @@ const ROUTING = [
   [/^projectile/, "https://asymdoom.dev/schemas/state/projectile.schema.json"],
   [/^door/, "https://asymdoom.dev/schemas/state/door.schema.json"],
   [/^mover/, "https://asymdoom.dev/schemas/state/mover.schema.json"],
+  [/^switch/, "https://asymdoom.dev/schemas/state/switch.schema.json"],
   [/^mods/, "https://asymdoom.dev/schemas/asym/mods.schema.json"],
   [/^event-/, "https://asymdoom.dev/schemas/state/event.schema.json"],
 ];

@@ -10,7 +10,7 @@ import {
   syncSessionFromEmbed,
   type SessionState,
 } from "./possession.js";
-import { encodeDoor, encodeMover, encodeProjectile } from "./wire.js";
+import { encodeDoor, encodeMover, encodeProjectile, encodeSwitch } from "./wire.js";
 
 const TICK_HZ = 35;
 const TICK_MS = 1000 / TICK_HZ;
@@ -317,6 +317,10 @@ export class ThinMatch {
       (snap.projectiles ?? []).map(encodeProjectile),
       row.state.projectileBaseline,
     );
+    const switches = diffEntities(
+      (snap.switches ?? []).map(encodeSwitch),
+      row.state.switchBaseline,
+    );
     const marine = this.embed.marineVitals?.(sessionId) ?? undefined;
     const points = this.embed.points(sessionId);
     const mods = this.embed.mods(sessionId);
@@ -327,6 +331,7 @@ export class ThinMatch {
       isEmptyDelta(doors) &&
       isEmptyDelta(movers) &&
       isEmptyDelta(projectiles) &&
+      isEmptyDelta(switches) &&
       events.length === 0 &&
       row.state.role === this.embed.role(sessionId) &&
       hudKey === row.state.lastHudKey
@@ -350,6 +355,7 @@ export class ThinMatch {
       projectiles,
       doors,
       movers,
+      switches,
       events: events.filter(
         (e) =>
           !e.sessionId ||
@@ -373,5 +379,6 @@ function clearBaselines(state: SessionState) {
   state.doorBaseline.clear();
   state.moverBaseline.clear();
   state.projectileBaseline.clear();
+  state.switchBaseline.clear();
   state.lastHudKey = "";
 }

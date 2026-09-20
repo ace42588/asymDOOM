@@ -64,7 +64,7 @@ clean:
 	rm -rf $(OBJDIR)
 	rm -f exported_symbols.txt
 
-exported_symbols.txt:
+exported_symbols.txt: Makefile
 	@echo "_asym_create" > $@
 	@echo "_asym_destroy" >> $@
 	@echo "_asym_tick" >> $@
@@ -86,6 +86,7 @@ exported_symbols.txt:
 	@echo "_asym_sizeof_event" >> $@
 	@echo "_asym_sizeof_debug_sim" >> $@
 	@echo "_asym_test_start_sound" >> $@
+	@echo "_asym_test_flip_first_switch" >> $@
 	@echo "_doomgeneric_Create" >> $@
 	@echo "_doomgeneric_Tick" >> $@
 

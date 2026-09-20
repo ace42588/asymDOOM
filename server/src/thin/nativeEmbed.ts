@@ -146,6 +146,12 @@ function loadLib() {
       sprite: "int",
       frame: "int",
     });
+    koffi.struct("asym_switch", {
+      id: "int",
+      top: "int",
+      mid: "int",
+      bot: "int",
+    });
     koffi.struct("asym_marine_vitals", {
       health: "int",
       armor: "int",
@@ -171,6 +177,8 @@ function loadLib() {
       marine: "asym_marine_vitals",
       map_ready: "int",
       pending_reload: "int",
+      switch_count: "int",
+      switches: koffi.array("asym_switch", 50),
     });
     koffi.struct("asym_event", {
       kind: "int",
@@ -447,6 +455,18 @@ export class NativeEmbed implements Embed {
         frame: p.frame as number,
       });
     }
+    const switches = [];
+    const scount = (out.switch_count as number) ?? 0;
+    const swRaw = (out.switches as Record<string, unknown>[]) ?? [];
+    for (let i = 0; i < scount; i++) {
+      const s = swRaw[i];
+      switches.push({
+        id: s.id as number,
+        top: s.top as number,
+        mid: s.mid as number,
+        bot: s.bot as number,
+      });
+    }
     const marine = out.marine as Record<string, number>;
     return {
       tick: out.tick as number,
@@ -455,6 +475,7 @@ export class NativeEmbed implements Embed {
       doors,
       movers,
       projectiles,
+      switches,
       events: [],
       pendingReload: !!(out.pending_reload as number),
       marine: marine

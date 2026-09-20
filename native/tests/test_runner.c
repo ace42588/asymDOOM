@@ -73,6 +73,7 @@ static void test_create_tick_snapshot(void)
         CHECK(found_item, "pickup items present");
         CHECK(items >= 4, "E1M1 has several pickups");
     }
+    CHECK(snap.switch_count == 0, "no flipped switches at map start");
     asym_destroy(e);
 }
 
@@ -798,6 +799,52 @@ static void test_sound_capture(void)
     asym_destroy(e);
 }
 
+static void test_switch_snapshot(void)
+{
+    asym_embed *e;
+    asym_snapshot snap;
+    int line, i, found;
+
+    e = make_embed();
+    CHECK(e != NULL, "create switch");
+    if (!e) return;
+    asym_get_snapshot(e, &snap);
+    CHECK(snap.switch_count == 0, "clean map has no switch deltas");
+
+    line = asym_test_flip_first_switch(1);
+    CHECK(line >= 0, "found a switch linedef");
+    asym_get_snapshot(e, &snap);
+    found = 0;
+    for (i = 0; i < snap.switch_count; i++) {
+        if (snap.switches[i].id == line) found = 1;
+    }
+    CHECK(found, "button flip appears in snapshot");
+    for (i = 0; i < 40; i++) asym_tick(e);
+    asym_get_snapshot(e, &snap);
+    found = 0;
+    for (i = 0; i < snap.switch_count; i++) {
+        if (snap.switches[i].id == line) found = 1;
+    }
+    CHECK(!found, "button revert drops switch from snapshot");
+
+    line = asym_test_flip_first_switch(0);
+    CHECK(line >= 0, "found a one-shot switch");
+    asym_get_snapshot(e, &snap);
+    found = 0;
+    for (i = 0; i < snap.switch_count; i++) {
+        if (snap.switches[i].id == line) found = 1;
+    }
+    CHECK(found, "one-shot flip appears in snapshot");
+    for (i = 0; i < 40; i++) asym_tick(e);
+    asym_get_snapshot(e, &snap);
+    found = 0;
+    for (i = 0; i < snap.switch_count; i++) {
+        if (snap.switches[i].id == line) found = 1;
+    }
+    CHECK(found, "one-shot switch stays flipped");
+    asym_destroy(e);
+}
+
 static void test_debug_sim_possessable(void)
 {
     asym_embed *e = make_embed();
@@ -840,6 +887,7 @@ int main(void)
     test_consume_corpse();
     test_scavenge_decoration();
     test_sound_capture();
+    test_switch_snapshot();
     if (fails) {
         fprintf(stderr, "%d FAIL(s)\n", fails);
         return 1;

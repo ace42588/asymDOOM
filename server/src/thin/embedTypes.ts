@@ -67,6 +67,14 @@ export interface ProjectileView {
   frame?: number;
 }
 
+/** Front-sidedef textures that differ from the IWAD map load (wall switches). */
+export interface SwitchView {
+  id: number; /* linedef index */
+  top: number;
+  mid: number;
+  bot: number;
+}
+
 export interface MarineVitals {
   health: number;
   armor: number;
@@ -103,6 +111,7 @@ export interface WorldSnapshot {
   doors?: DoorView[];
   movers?: MoverView[];
   projectiles?: ProjectileView[];
+  switches?: SwitchView[];
   events: SimEvent[];
   pendingReload: boolean;
   marine?: MarineVitals;

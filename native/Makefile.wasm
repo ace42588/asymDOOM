@@ -36,7 +36,7 @@ BASE_CFLAGS = -O2 -Wall -Wno-unused-parameter -Wno-unused-variable \
 	-DDEFAULT_RAM=32 -DMIN_RAM=8 \
 	-I$(ENG) -I$(SRC) -I$(API) -I$(SRC)/events
 
-EXPORTS = _asym_view_create,_asym_view_load_map,_asym_view_set_tick,_asym_view_set_view,_asym_view_set_hide_psprites,_asym_view_apply_doors,_asym_view_apply_movers,_asym_view_sync_actors,_asym_view_sync_projectiles,_asym_view_render,_asym_view_set_scaling,_asym_view_framebuffer,_asym_view_width,_asym_view_height,_asym_view_fb_width,_asym_view_fb_height,_asym_view_destroy,_malloc,_free
+EXPORTS = _asym_view_create,_asym_view_load_map,_asym_view_set_tick,_asym_view_set_view,_asym_view_set_hide_psprites,_asym_view_apply_doors,_asym_view_apply_movers,_asym_view_apply_switches,_asym_view_sync_actors,_asym_view_sync_projectiles,_asym_view_render,_asym_view_set_scaling,_asym_view_framebuffer,_asym_view_width,_asym_view_height,_asym_view_fb_width,_asym_view_fb_height,_asym_view_destroy,_malloc,_free
 
 LDFLAGS = -s MODULARIZE=1 \
 	-s EXPORT_NAME=createAsymView \

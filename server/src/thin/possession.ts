@@ -14,6 +14,7 @@ export interface SessionState {
   doorBaseline: Map<number, string>;
   moverBaseline: Map<number, string>;
   projectileBaseline: Map<number, string>;
+  switchBaseline: Map<number, string>;
   /** Last sent marine vitals / points / mods — skip empty snapshots only when these match. */
   lastHudKey: string;
 }
@@ -37,6 +38,7 @@ export function assignOnJoin(
     doorBaseline: new Map(),
     moverBaseline: new Map(),
     projectileBaseline: new Map(),
+    switchBaseline: new Map(),
     lastHudKey: "",
   };
 }

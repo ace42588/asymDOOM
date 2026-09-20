@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { diffActors, diffEntities, isEmptyDelta } from "../thin/deltas.js";
 import { parseClientMessage } from "../thin/protocol.js";
-import { encodeDoor, encodeDoorState, encodeMover, encodeMoverKind, encodeProjectile } from "../thin/wire.js";
+import { encodeDoor, encodeDoorState, encodeMover, encodeMoverKind, encodeProjectile, encodeSwitch } from "../thin/wire.js";
 import { NativeEmbed } from "../thin/nativeEmbed.js";
 import {
   assignOnJoin,
@@ -87,6 +87,14 @@ describe("wire encoding", () => {
     assert.equal(p.angle, 0);
     assert.equal(encodeProjectile({ id: 2, type: 37, x: 0, y: 0, z: 0, sprite: 17, frame: 0 }).sprite, 17);
   });
+  it("passes switch textures through", () => {
+    assert.deepEqual(encodeSwitch({ id: 42, top: 0, mid: 87, bot: 12 }), {
+      id: 42,
+      top: 0,
+      mid: 87,
+      bot: 12,
+    });
+  });
 });
 
 describe("deltas", () => {
@@ -155,6 +163,7 @@ describe("possession (native)", () => {
     const snap = embed.snapshot();
     assert.ok(snap.actors.length > 5, "real E1M1 roster");
     assert.equal(snap.mapName, "E1M1");
+    assert.deepEqual(snap.switches, []);
     embed.leaveSession("s1");
     embed.leaveSession("s2");
     embed.destroy();

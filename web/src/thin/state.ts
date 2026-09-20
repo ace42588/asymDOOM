@@ -64,6 +64,13 @@ export interface Projectile {
   frame?: number;
 }
 
+export interface SwitchTex {
+  id: number;
+  top: number;
+  mid: number;
+  bot: number;
+}
+
 export interface Mods {
   health: number;
   speed: number;
@@ -121,10 +128,17 @@ export interface EntityMap {
   doors: Map<number, Door>;
   movers: Map<number, Mover>;
   projectiles: Map<number, Projectile>;
+  switches: Map<number, SwitchTex>;
 }
 
 export function createEntityMap(): EntityMap {
-  return { actors: new Map(), doors: new Map(), movers: new Map(), projectiles: new Map() };
+  return {
+    actors: new Map(),
+    doors: new Map(),
+    movers: new Map(),
+    projectiles: new Map(),
+    switches: new Map(),
+  };
 }
 
 function applyDelta<T extends { id: number }>(
@@ -220,6 +234,7 @@ export function reduceServerMessage(state: ClientState, msg: Record<string, unkn
           doors: new Map(state.entities.doors),
           movers: new Map(state.entities.movers),
           projectiles: new Map(state.entities.projectiles),
+          switches: new Map(state.entities.switches),
         },
         tick: Number(msg.tick),
         mapLoading: false,
@@ -239,6 +254,7 @@ export function reduceServerMessage(state: ClientState, msg: Record<string, unkn
       applyDelta(next.entities.doors, msg.doors as EntityDelta<Door>);
       applyDelta(next.entities.movers, msg.movers as EntityDelta<Mover>);
       applyDelta(next.entities.projectiles, msg.projectiles as EntityDelta<Projectile>);
+      applyDelta(next.entities.switches, msg.switches as EntityDelta<SwitchTex>);
       applyEvents(next, msg.events as SimEvent[] | undefined);
       return next;
     }

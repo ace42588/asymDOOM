@@ -46,6 +46,7 @@
     "projectiles": { "$ref": "entity-delta.schema.json" },
     "doors": { "$ref": "entity-delta.schema.json" },
     "movers": { "$ref": "entity-delta.schema.json" },
+    "switches": { "$ref": "entity-delta.schema.json" },
     "events": {
       "type": "array",
       "items": { "$ref": "../state/event.schema.json" }
