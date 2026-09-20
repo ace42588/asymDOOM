@@ -379,7 +379,7 @@ corpse_ready:
     asym_tick(e);
 
     pts1 = asym_points(e, "d");
-    CHECK(pts1 == pts0 + 20, "consume awards +20 points");
+    CHECK(pts1 == pts0 + 25, "consume awards +25 points");
 
     n = asym_events_pull(e, evs, 32);
     for (i = 0; i < n; i++) {
@@ -567,7 +567,7 @@ static void test_scavenge_decoration(void)
         for (j = 0; j < n; j++) {
             if (evs[j].kind == ASYM_EV_POINTS && !strcmp(evs[j].reason, "scavenge")) {
                 got_scavenge = 1;
-                CHECK(pts1 == pts0 + 5, "scavenge awards +5 points");
+                CHECK(pts1 == pts0 + 10, "scavenge awards +10 points");
                 CHECK(evs[j].points == pts1, "scavenge event points match wallet");
             }
         }

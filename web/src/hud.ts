@@ -26,7 +26,7 @@ export function setCatchup(visible: boolean, text?: string) {
 
 function hintHtml(role: string): string {
   if (role === "demon") {
-    return "<b>5</b> hop to another demon &middot; <b>E/F</b> doors or consume (+20 pts / HoT) or scavenge gore (+5) &middot; Buy: <b>1</b> health &middot; <b>2</b> speed &middot; <b>3</b> damage &middot; <b>4</b> attack rate &mdash; 25 pts each";
+    return "<b>5</b> hop to another demon &middot; <b>E/F</b> doors or consume (+25 pts / HoT) or scavenge gore (+10) &middot; Buy: <b>1</b> health &middot; <b>2</b> speed &middot; <b>3</b> damage &middot; <b>4</b> attack rate &mdash; 25 pts each";
   }
   if (role === "spectator") {
     return "<b>P</b> possess &middot; <b>[</b>/<b>]</b> follow &middot; <b>5</b> hop when possessed";

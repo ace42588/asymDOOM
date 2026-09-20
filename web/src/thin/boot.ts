@@ -197,8 +197,8 @@ export async function bootThin() {
         if (e.kind === "hop") banner(`Possessed ${e.species ?? "demon"}`);
         if (e.kind === "hopfail") banner(e.reason === "cool" ? "Hop on cooldown" : "No other demons available");
         if (e.kind === "spectate") banner("Spectating — press P to possess");
-        if (e.kind === "points" && e.reason === "consume") banner("Consumed a corpse (+20)");
-        if (e.kind === "points" && e.reason === "scavenge") banner("Scavenged remains (+5)");
+        if (e.kind === "points" && e.reason === "consume") banner("Consumed a corpse (+25)");
+        if (e.kind === "points" && e.reason === "scavenge") banner("Scavenged remains (+10)");
         if (e.kind === "secret") {
           const sector = e.reason ? ` sector ${e.reason}` : "";
           const count = typeof e.points === "number" ? ` (${e.points})` : "";

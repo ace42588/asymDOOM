@@ -24,7 +24,7 @@ See also [render-contract.md](./render-contract.md) and [render-defects.md](./re
 - [ ] Marine HUD vitals (HP/AR/AM) update from snapshots; status bar + weapon overlay visible
 - [ ] Demon HUD (possessed): PTS / HP% of base (can exceed 100 after health mods) / mugshot / HLTH·SPEED·DAMG·RATE; pain flash on damage
 - [ ] Fire (LMB / Space / Ctrl) spends ammo / attacks; puff/blood FX appear on hits
-- [ ] E/F opens doors and hits switches; lifts/plats move floors when triggered. Possessed demon: if a special is ahead Use prefers the door/switch; otherwise nearest edible is consumed — kill corpse (+20 pts, +10 HP over 5s stackable) or map dead body/gibs (+5 pts, no heal)
+- [ ] E/F opens doors and hits switches; lifts/plats move floors when triggered. Possessed demon: if a special is ahead Use prefers the door/switch; otherwise nearest edible is consumed — kill corpse (+25 pts, +10 HP over 5s stackable) or map dead body/gibs (+10 pts, no heal)
 - [ ] 1–8 and mouse wheel change marine weapons (overlay snaps to ready weapon)
 - [ ] On marine death (respawn mode): `notice` → `mapLoad` → ack → full snapshot
 - [ ] `/api/reset` recreates the native engine instance

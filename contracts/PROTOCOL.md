@@ -41,8 +41,8 @@ Demon consume targets (nearest in use range):
 
 | target | points | health | event `reason` |
 | --- | --- | --- | --- |
-| Kill corpse (`MF_CORPSE`) | **+20** | **+10 HP over 5s** (stackable HoT) | `consume` |
-| Map gore prop (dead bodies / gibs) | **+5** | none | `scavenge` |
+| Kill corpse (`MF_CORPSE`) | **+25** | **+10 HP over 5s** (stackable HoT) | `consume` |
+| Map gore prop (dead bodies / gibs) | **+10** | none | `scavenge` |
 
 Both remove the target and emit a `points` event.
 
