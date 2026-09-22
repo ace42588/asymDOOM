@@ -28,7 +28,9 @@ typedef struct asym_config {
     int skill;             /* 0..4 */
     int episode;           /* 1..4 */
     int map;               /* 1..9 */
-    int marine_death;      /* 0=demons_win 1=respawn_as_killer 2=marine_respawn */
+    /* 0=demons_win 1=respawn_as_killer (AI→E1M1, player mob→same map+killer)
+     * 2=marine_respawn */
+    int marine_death;
     int possess_mask;      /* ASYM_P_* bits; 0 → default 0xff */
 } asym_config;
 
@@ -236,6 +238,9 @@ void asym_test_start_sound(int sfx_id);
 /* Test helper: P_ChangeSwitchTexture on the first switch-textured linedef.
  * use_again != 0 starts a BUTTONTIME revert. Returns linedef index, or -1. */
 int asym_test_flip_first_switch(int use_again);
+
+/* Test helper: simulate marine death (killer_slot = controller slot, or -1 for AI). */
+void asym_test_marine_death(int killer_slot);
 
 #ifdef __cplusplus
 }

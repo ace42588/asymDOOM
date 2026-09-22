@@ -29,16 +29,30 @@ static const char *wad_path(void)
     return w && w[0] ? w : "../assets/doom1.wad";
 }
 
-static asym_embed *make_embed(void)
+static asym_embed *make_embed_map(int episode, int map);
+static asym_embed *make_embed(void);
+
+static asym_embed *make_embed_map(int episode, int map)
 {
     asym_config cfg = {0};
     cfg.iwad_path = wad_path();
     cfg.skill = 3;
-    cfg.episode = 1;
-    cfg.map = 1;
+    cfg.episode = episode;
+    cfg.map = map;
     cfg.marine_death = 1; /* respawn_as_killer */
     cfg.possess_mask = 0xff;
     return asym_create(&cfg);
+}
+
+static asym_embed *make_embed(void)
+{
+    return make_embed_map(1, 1);
+}
+
+static void tick_through_round_reload(asym_embed *e)
+{
+    int i;
+    for (i = 0; i < 3 * 35; i++) asym_tick(e);
 }
 
 static void test_create_tick_snapshot(void)
@@ -845,6 +859,39 @@ static void test_switch_snapshot(void)
     asym_destroy(e);
 }
 
+static void test_marine_death_player_vs_ai(void)
+{
+    asym_snapshot snap;
+    asym_embed *e = make_embed_map(1, 3);
+    CHECK(e != NULL, "create e1m3");
+    if (!e) return;
+    asym_register_session(e, "marine");
+    asym_register_session(e, "demon");
+    asym_get_snapshot(e, &snap);
+    CHECK(strcmp(snap.map_name, "E1M3") == 0, "starts on E1M3");
+
+    /* Player-controlled mob kill: reload same map, killer becomes marine. */
+    asym_test_marine_death(1);
+    tick_through_round_reload(e);
+    asym_get_snapshot(e, &snap);
+    CHECK(strcmp(snap.map_name, "E1M3") == 0, "player kill reloads same map");
+    CHECK(asym_role(e, "demon") == 1, "killer becomes marine");
+    CHECK(asym_role(e, "marine") == 2, "ex-marine becomes demon");
+    asym_destroy(e);
+
+    /* Game AI kill: restart at E1M1, marine player keeps role. */
+    e = make_embed_map(1, 3);
+    CHECK(e != NULL, "create e1m3 for ai kill");
+    if (!e) return;
+    asym_register_session(e, "marine");
+    asym_test_marine_death(-1);
+    tick_through_round_reload(e);
+    asym_get_snapshot(e, &snap);
+    CHECK(strcmp(snap.map_name, "E1M1") == 0, "AI kill reloads E1M1");
+    CHECK(asym_role(e, "marine") == 1, "marine keeps role after AI kill");
+    asym_destroy(e);
+}
+
 static void test_debug_sim_possessable(void)
 {
     asym_embed *e = make_embed();
@@ -877,6 +924,7 @@ int main(void)
     fprintf(stderr, "native tests wad=%s\n", wad_path());
     test_event_queue_unit();
     test_create_tick_snapshot();
+    test_marine_death_player_vs_ai();
     test_debug_sim_possessable();
     test_possess_and_move();
     test_auto_possess_varies();

@@ -267,8 +267,10 @@ void asym_tick(asym_embed *e)
 
     /* Handle pending round reload */
     if (e->rules.need_round_reload) {
+        int ep = e->rules.reload_episode > 0 ? e->rules.reload_episode : e->cfg.episode;
+        int map = e->rules.reload_map > 0 ? e->rules.reload_map : e->cfg.map;
         e->rules.need_round_reload = 0;
-        G_InitNew((skill_t)e->cfg.skill, e->cfg.episode, e->cfg.map);
+        G_InitNew((skill_t)e->cfg.skill, ep, map);
         capture_switch_baseline();
     }
 
@@ -703,4 +705,9 @@ int asym_test_flip_first_switch(int use_again)
         }
     }
     return -1;
+}
+
+void asym_test_marine_death(int killer_slot)
+{
+    asym_rules_on_marine_death(killer_slot);
 }

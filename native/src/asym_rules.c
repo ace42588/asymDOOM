@@ -485,18 +485,30 @@ void asym_rules_on_demon_death(int slot)
 void asym_rules_on_marine_death(int killer_slot)
 {
     if (!g_asym_rules) return;
-    push_ev(ASYM_EV_MARINE_KILL, NULL, 0, NULL, "marine");
+    push_ev(ASYM_EV_MARINE_KILL, NULL, 0, NULL,
+             killer_slot >= 0 ? "player" : "ai");
 
     switch (g_asym_rules->marine_death) {
     case 1: /* respawn_as_killer */
-        g_asym_rules->pending_marine_slot =
-            killer_slot >= 0 ? killer_slot : g_asym_rules->marine_slot;
+        if (killer_slot >= 0) {
+            /* Player mob: stay on this map; killer becomes marine. */
+            g_asym_rules->pending_marine_slot = killer_slot;
+            g_asym_rules->reload_episode = gameepisode;
+            g_asym_rules->reload_map = gamemap;
+        } else {
+            /* Game AI: restart at E1M1; marine player keeps role. */
+            g_asym_rules->pending_marine_slot = g_asym_rules->marine_slot;
+            g_asym_rules->reload_episode = 1;
+            g_asym_rules->reload_map = 1;
+        }
         g_asym_rules->want_round_reload = 1;
         g_asym_rules->win_countdown = 2 * TICRATE;
         push_ev(ASYM_EV_ROUND_RELOAD, NULL, 0, NULL, "countdown");
         break;
     case 2: /* marine_respawn */
         g_asym_rules->pending_marine_slot = g_asym_rules->marine_slot;
+        g_asym_rules->reload_episode = gameepisode;
+        g_asym_rules->reload_map = gamemap;
         g_asym_rules->want_round_reload = 1;
         g_asym_rules->win_countdown = 2 * TICRATE;
         push_ev(ASYM_EV_ROUND_RELOAD, NULL, 0, NULL, "countdown");
@@ -724,6 +736,8 @@ void asym_rules_on_level_start(asym_rules_state *st)
     st->map_ready = 1;
     st->want_round_reload = 0;
     st->need_round_reload = 0;
+    st->reload_episode = 0;
+    st->reload_map = 0;
     st->win_countdown = 0;
 
     /* Apply pending marine rotation */

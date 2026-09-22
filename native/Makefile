@@ -87,6 +87,7 @@ exported_symbols.txt: Makefile
 	@echo "_asym_sizeof_debug_sim" >> $@
 	@echo "_asym_test_start_sound" >> $@
 	@echo "_asym_test_flip_first_switch" >> $@
+	@echo "_asym_test_marine_death" >> $@
 	@echo "_doomgeneric_Create" >> $@
 	@echo "_doomgeneric_Tick" >> $@
 

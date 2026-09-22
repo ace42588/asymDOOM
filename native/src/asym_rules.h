@@ -44,6 +44,8 @@ typedef struct asym_rules_state {
     int possess_mask;
     int marine_slot; /* controller slot of marine, or -1 */
     int pending_marine_slot;
+    int reload_episode; /* 0 → use embed cfg on round reload */
+    int reload_map;
     int win_countdown;
     int want_round_reload;
     int need_round_reload;
